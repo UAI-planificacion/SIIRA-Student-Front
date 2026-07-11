@@ -1,0 +1,92 @@
+'use client';
+
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useMemo,
+    useState,
+} from 'react';
+
+import type { DraftStatus, Subject } from '@/types/siira';
+
+interface CartContextValue {
+    draftSubjects : Subject[];
+    draftStatus   : DraftStatus;
+    usedCredits   : number;
+    isCartOpen    : boolean;
+    addSubject    : ( subject: Subject ) => void;
+    removeSubject : ( id: string ) => void;
+    freezeDraft   : () => void;
+    isInCart      : ( id: string ) => boolean;
+    toggleCart    : () => void;
+}
+
+const CartContext = createContext<CartContextValue | null>( null );
+
+interface CartProviderProps {
+    children : React.ReactNode;
+}
+
+export function CartProvider( { children }: CartProviderProps ): React.JSX.Element {
+    const [ draftSubjects, setDraftSubjects ] = useState<Subject[]>( [] );
+    const [ draftStatus, setDraftStatus ]     = useState<DraftStatus>( 'editing' );
+    const [ isCartOpen, setIsCartOpen ]       = useState( true );
+
+    const usedCredits = useMemo(
+        () => draftSubjects.reduce( ( acc, s ) => acc + s.credits, 0 ),
+        [ draftSubjects ]
+    );
+
+    const addSubject = useCallback( ( subject: Subject ) => {
+        setDraftSubjects( ( prev ) => {
+            if ( prev.some( ( s ) => s.id === subject.id ) ) return prev;
+
+            return [ ...prev, subject ];
+        } );
+    }, [] );
+
+    const removeSubject = useCallback( ( id: string ) => {
+        setDraftSubjects( ( prev ) => prev.filter( ( s ) => s.id !== id ) );
+    }, [] );
+
+    const freezeDraft = useCallback( () => {
+        setDraftStatus( 'submitted' );
+    }, [] );
+
+    const isInCart = useCallback(
+        ( id: string ) => draftSubjects.some( ( s ) => s.id === id ),
+        [ draftSubjects ]
+    );
+
+    const handleToggleCart = useCallback( () => setIsCartOpen( ( prev ) => !prev ), [] );
+
+    const value = useMemo<CartContextValue>(
+        () => ({
+            draftSubjects,
+            draftStatus,
+            usedCredits,
+            isCartOpen,
+            addSubject,
+            removeSubject,
+            freezeDraft,
+            isInCart,
+            toggleCart    : handleToggleCart,
+        }),
+        [ draftSubjects, draftStatus, usedCredits, isCartOpen, addSubject, removeSubject, freezeDraft, isInCart, handleToggleCart ]
+    );
+
+    return (
+        <CartContext.Provider value={ value }>
+            { children }
+        </CartContext.Provider>
+    );
+}
+
+export function useCart(): CartContextValue {
+    const ctx = useContext( CartContext );
+
+    if ( !ctx ) throw new Error( 'useCart debe usarse dentro de CartProvider' );
+
+    return ctx;
+}
