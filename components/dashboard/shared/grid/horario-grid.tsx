@@ -76,18 +76,19 @@ export function HorarioGridSkeleton(): React.JSX.Element {
                     ) ) }
                 </div>
 
-                { BLOCKS.map( ( b ) => (
-                    <div key={ b } className="grid grid-cols-[56px_repeat(6,1fr)] gap-1">
+                { BLOCKS.map( ( b: number, bIdx: number ) => {
+                    return <div key={ b } className="grid grid-cols-[56px_repeat(6,1fr)] gap-1">
                         <div className="h-10 rounded bg-muted/60" />
-                        { DAYS.map( ( d ) => (
-                            <div
+                        { DAYS.map( ( d: ScheduleSlot['day'], dIdx: number ) => {
+                            const opacityVal: number = ( bIdx + dIdx ) % 3 === 0 ? 1 : 0.3;
+                            return <div
                                 key={ d }
                                 className="h-10 rounded bg-muted/40"
-                                style={{ opacity: Math.random() > 0.7 ? 1 : 0.3 }}
-                            />
-                        ) ) }
-                    </div>
-                ) ) }
+                                style={ { opacity: opacityVal } }
+                            />;
+                        } ) }
+                    </div>;
+                } ) }
             </div>
         </div>
     );
