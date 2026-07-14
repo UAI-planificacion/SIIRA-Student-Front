@@ -17,7 +17,10 @@ import type { ScheduleSlot, Subject } from '@/types/siira';
 import { HorarioGrid, HorarioGridSkeleton } from '../shared/grid/horario-grid';
 import { SubjectCardSkeleton }              from './subject-card-skeleton';
 import { VirtualGrid }                      from './virtual-grid';
-import { ChevronLeft, ChevronRight, Clock, Filter, ShoppingCart } from 'lucide-react';
+import { MallaSemestral }                  from '../malla/malla-semestral';
+import { KanbanBloques }                   from '../kanban/kanban-bloques';
+import { ScheduleGenerator }               from '../generator/schedule-generator';
+import { ChevronLeft, ChevronRight, Filter, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +47,7 @@ function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type CatalogTab = 'horario' | 'catalogo';
+type CatalogTab = 'horario' | 'catalogo' | 'semestre' | 'bloques' | 'generar';
 
 export function CatalogoCentral(): React.JSX.Element {
     const [ activeTab, setActiveTab ] = useState<CatalogTab>( 'horario' );
@@ -150,6 +153,15 @@ export function CatalogoCentral(): React.JSX.Element {
 
                 { activeTab === 'horario' ? (
                     <HorarioGridSkeleton />
+                ) : activeTab === 'semestre' ? (
+                    // MallaSemestral handles its own skeleton internally
+                    <MallaSemestral />
+                ) : activeTab === 'bloques' ? (
+                    // KanbanBloques handles its own skeleton internally
+                    <KanbanBloques />
+                ) : activeTab === 'generar' ? (
+                    // ScheduleGenerator handles its own skeleton internally
+                    <ScheduleGenerator />
                 ) : (
                     <div className="flex-1 overflow-hidden px-4 py-4 space-y-4">
                         <div className="h-5 w-48 bg-muted rounded animate-pulse" />
@@ -223,6 +235,30 @@ export function CatalogoCentral(): React.JSX.Element {
                                 className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
                             >
                                 ☰ Catálogo
+                            </TabsTrigger>
+
+                            <TabsTrigger
+                                id="tab-semestre"
+                                value="semestre"
+                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                📚 Semestre
+                            </TabsTrigger>
+
+                            <TabsTrigger
+                                id="tab-bloques"
+                                value="bloques"
+                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                📋 Bloques
+                            </TabsTrigger>
+
+                            <TabsTrigger
+                                id="tab-generar"
+                                value="generar"
+                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                ✨ Generar
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -298,6 +334,30 @@ export function CatalogoCentral(): React.JSX.Element {
                         </div>
                     ) }
                 </TabsContent>
+
+                {/* Semestre tab */}
+                <TabsContent
+                    value="semestre"
+                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                >
+                    <MallaSemestral />
+                </TabsContent>
+
+                {/* Bloques tab */}
+                <TabsContent
+                    value="bloques"
+                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                >
+                    <KanbanBloques />
+                </TabsContent>
+
+                {/* Generar tab */}
+                <TabsContent
+                    value="generar"
+                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                >
+                    <ScheduleGenerator />
+                </TabsContent>
             </Tabs>
         </div>
     );
@@ -326,6 +386,7 @@ function TabHeader( { activeTab, onTabChange }: TabHeaderProps ): React.JSX.Elem
                 >
                     📅 Horario
                 </button>
+
                 <button
                     id="tab-catalogo-fallback"
                     onClick={ () => onTabChange( 'catalogo' ) }
@@ -337,6 +398,45 @@ function TabHeader( { activeTab, onTabChange }: TabHeaderProps ): React.JSX.Elem
                     ].join( ' ' )}
                 >
                     ☰ Catálogo
+                </button>
+
+                <button
+                    id="tab-semestre-fallback"
+                    onClick={ () => onTabChange( 'semestre' ) }
+                    className={[
+                        'h-7 px-3 text-xs rounded-md transition-all',
+                        activeTab === 'semestre'
+                            ? 'bg-background shadow-sm text-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground',
+                    ].join( ' ' )}
+                >
+                    📚 Semestre
+                </button>
+
+                <button
+                    id="tab-bloques-fallback"
+                    onClick={ () => onTabChange( 'bloques' ) }
+                    className={[
+                        'h-7 px-3 text-xs rounded-md transition-all',
+                        activeTab === 'bloques'
+                            ? 'bg-background shadow-sm text-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground',
+                    ].join( ' ' )}
+                >
+                    📋 Bloques
+                </button>
+
+                <button
+                    id="tab-generar-fallback"
+                    onClick={ () => onTabChange( 'generar' ) }
+                    className={ [
+                        'h-7 px-3 text-xs rounded-md transition-all',
+                        activeTab === 'generar'
+                            ? 'bg-background shadow-sm text-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground',
+                    ].join( ' ' ) }
+                >
+                    ✨ Generar
                 </button>
             </div>
         </div>

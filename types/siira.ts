@@ -7,16 +7,20 @@ export interface ScheduleSlot {
 
 export type SubjectKind = "asignatura" | "taller";
 
+export type SubjectAcademicStatus = "approved" | "failed_or_pending" | "available_to_enroll";
+
 export interface Subject {
-    id          : string;
-    name        : string;
-    credits     : number;
-    quotas      : number;   // Cupos actuales — mutable por polling
-    kind        : SubjectKind;
-    professor   : string;
-    schedule    : string;   // JSON.stringify(ScheduleSlot[])
-    description : string;
-    isRequired  : boolean;
+    id             : string;
+    name           : string;
+    credits        : number;
+    quotas         : number;   // Cupos actuales — mutable por polling
+    kind           : SubjectKind;
+    professor      : string;
+    schedule       : string;   // JSON.stringify(ScheduleSlot[])
+    description    : string;
+    isRequired     : boolean;
+    academicStatus : SubjectAcademicStatus; // Estado académico del estudiante en este ramo
+    semester       : number;                // Columna de semestre en la malla (1, 2, 3...)
 }
 
 export type DraftStatus = "editing" | "submitted";
