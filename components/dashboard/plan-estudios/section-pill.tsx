@@ -6,6 +6,7 @@ import { Check, ShoppingCart, AlertCircle } from 'lucide-react';
 
 import { useCart }              from '@/context/cart-context';
 import { useExecutionMode }     from '@/hooks/use-execution-mode';
+import { useSubjectQuotas }     from '@/hooks/use-subject-quotas';
 import type { Subject, SubjectSection } from '@/types/siira';
 import {
     Dialog,
@@ -34,8 +35,8 @@ function QuotaDots( { quotas, capacity }: { quotas: number; capacity: number } )
                         isEmpty
                             ? 'bg-destructive/60'
                             : i < filled
-                                ? 'bg-emerald-500'
-                                : 'bg-muted',
+                                ? 'bg-emerald-500  animate-pulse'
+                                : 'bg-muted  animate-pulse',
                     ].join( ' ' ) }
                 />
             ) ) }
@@ -57,10 +58,15 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
     const { mode } = useExecutionMode();
     const [ confirmOpen, setConfirmOpen ] = useState( false );
 
+    // Polling de cupos a nivel de asignatura en modo toma_ramos
+    const { data: liveQuotas } = useSubjectQuotas( subject.id, mode === 'toma_ramos' );
+    const liveSec              = liveQuotas?.sections.find( ( s ) => s.id === section.id );
+    const currentQuotas        = liveSec ? liveSec.quotas : section.quotas;
+
     const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
     const isThisSection = currentInCart?.professor === section.professor;
     const isInCart      = !!currentInCart;
-    const isFull        = section.quotas === 0;
+    const isFull        = currentQuotas === 0;
 
     // En Toma de Ramos: deshabilitado si ya hay algo en el carro (inscrito) o no hay cupo
     // En Planificación: deshabilitado si no hay cupo y no es la sección seleccionada
@@ -73,7 +79,7 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
             ...subject,
             professor : section.professor,
             schedule  : section.schedule,
-            quotas    : section.quotas,
+            quotas    : currentQuotas,
         };
 
         if ( mode === 'toma_ramos' ) {
@@ -101,11 +107,11 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
     return (
         <>
             <button
-                id={ `section-pill-${ section.id }` }
-                type="button"
-                disabled={ isDisabled }
-                onClick={ handleClick }
-                className={ [
+                id          = { `section-pill-${ section.id }` }
+                type        = "button"
+                disabled    = { isDisabled }
+                onClick     = { handleClick }
+                className   = {[
                     'group flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium transition-all duration-150 text-left',
                     isThisSection
                         ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
@@ -131,35 +137,70 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
                     { section.professor }
                 </span>
 
-                <QuotaDots quotas={ section.quotas } capacity={ section.capacity } />
+                <QuotaDots quotas={ currentQuotas } capacity={ section.capacity } />
 
-                <span className={ [
+                <span className={[
                     'ml-auto tabular-nums',
-                    section.quotas === 0
+                    currentQuotas === 0
                         ? 'text-destructive'
-                        : section.quotas < 10
+                        : currentQuotas < 10
                             ? 'text-orange-500'
                             : 'text-muted-foreground',
-                ].join( ' ' ) }>
+                ].join( ' ' )}>
+                    {/* Solo en modo toma_ramos se muestra el cupo actual */}
+                    { mode === 'toma_ramos' &&
+                        <span className={ currentQuotas === 0 ? "" : "animate-pulse"}>{ currentQuotas }/</span>
+                    }
                     { section.capacity }
                 </span>
             </button>
 
             {/* Dialog de confirmación de inscripción formal (Modo Toma de Ramos) */}
-            <Dialog open={ confirmOpen } onOpenChange={ ( open ) => { if ( !open ) { /* prevent close externally by not doing setConfirmOpen(false) here */ } } }>
+            <Dialog
+                open            = { confirmOpen }
+                onOpenChange    = { ( open ) => { if ( !open ) { /* prevent close externally by not doing setConfirmOpen(false) here */ }}}
+            >
                 <DialogContent showCloseButton={ false }>
                     <DialogHeader>
                         <div className="flex items-center gap-2 text-destructive mb-1">
                             <AlertCircle className="size-5 shrink-0" />
+
                             <DialogTitle className="text-base font-bold text-foreground">
                                 Confirmar Inscripción de Asignatura
                             </DialogTitle>
                         </div>
 
                         <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-                            ¿Estás seguro de que deseas inscribir la asignatura <strong className="text-foreground">{ subject.name }</strong> en la <strong className="text-foreground">{ section.label }</strong> dictada por el profesor <strong className="text-foreground">{ section.professor }</strong>?
+                            ¿Estás seguro de que deseas inscribir la asignatura <strong className="text-foreground">{ subject.name }</strong>?
                         </DialogDescription>
                     </DialogHeader>
+
+                    {/* Visualización en tiempo real de la sección y sus cupos */}
+                    <div className="my-2.5 p-3 rounded-lg border border-border bg-muted/20 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-foreground">
+                                { section.label }
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Prof. { section.professor }
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <QuotaDots quotas={ currentQuotas } capacity={ section.capacity } />
+                            <span className={[
+                                'text-xs font-bold tabular-nums ml-1',
+                                currentQuotas === 0
+                                    ? 'text-destructive'
+                                    : currentQuotas < 10
+                                        ? 'text-orange-500'
+                                        : 'text-muted-foreground',
+                            ].join( ' ' )}>
+                                <span className={ currentQuotas === 0 ? "" : "animate-pulse" }>{ currentQuotas }/</span>
+                                { section.capacity }
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="my-2 p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] text-yellow-600 dark:text-yellow-400 leading-normal">
                         ⚠ <strong>Importante:</strong> Esta acción es de registro automático. Una vez confirmada, no podrás revertirla ni modificar la sección desde esta plataforma; deberás gestionarlo formalmente con la secretaría académica de la universidad.
@@ -177,13 +218,19 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
 
                         <Button
                             id="dialog-confirm-accept"
+                            disabled={ currentQuotas === 0 }
                             onClick={ () => {
                                 setConfirmOpen( false );
                                 handleAction();
                             } }
-                            className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className={[
+                                'h-8 text-xs font-semibold text-white transition-all',
+                                currentQuotas === 0
+                                    ? 'bg-muted border-border cursor-not-allowed opacity-50'
+                                    : 'bg-emerald-600 hover:bg-emerald-700'
+                            ].join( ' ' )}
                         >
-                            Aceptar e Inscribir
+                            { currentQuotas === 0 ? 'Sin cupos disponibles' : 'Aceptar e Inscribir' }
                         </Button>
                     </DialogFooter>
                 </DialogContent>
