@@ -59,7 +59,7 @@ export function CatalogoCentral(): React.JSX.Element {
         }
     }, [ mode, activeTab ] );
 
-    const { data: subjects, isLoading, isError } = useSubjects( mode === 'toma_ramos' );
+    const { data: subjects, isLoading, isError } = useSubjects();
     const { data: student }                      = useStudent();
     const {
         searchQuery,
