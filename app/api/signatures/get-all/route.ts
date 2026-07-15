@@ -1,17 +1,43 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse }     from 'next/server';
 
-import type { Subject, SubjectSection, ScheduleSlot, SubjectAcademicStatus } from '@/types/siira';
+import type {
+    Subject,
+    SubjectSection,
+    ScheduleSlot,
+    SubjectAcademicStatus
+} from '@/types/siira';
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
-
 function s( slots: ScheduleSlot[] ): string {
     return JSON.stringify( slots );
 }
 
-function randomQuotas( base: number ): number {
-    const delta = Math.floor( Math.random() * 21 ) - 10;
-    return Math.max( 0, base + delta );
+
+declare global {
+    var siiraSubjects: Subject[] | undefined;
+}
+
+export function initGlobalSubjects( force : boolean = false ): void {
+    if ( !force && globalThis.siiraSubjects ) return;
+
+    globalThis.siiraSubjects = BASE_SUBJECTS.map( ( subj ) => {
+        const defaultQuotas = [ 'subj-01', 'subj-04', 'subj-16' ].includes( subj.id ) ? 2 : 30;
+
+        let sections = subj.sections;
+        if ( sections ) {
+            sections = sections.map( ( sec ) => ({
+                ...sec,
+                quotas: [ 'subj-01', 'subj-04', 'subj-16' ].includes( subj.id ) ? 2 : 30,
+            }) );
+        }
+
+        return {
+            ...subj,
+            quotas: defaultQuotas,
+            sections,
+        };
+    });
 }
 
 /** Build two or three sections for an available_to_enroll subject */
@@ -26,16 +52,15 @@ function mkSections(
         label     : `Sec ${ i + 1 }`,
         professor,
         schedule  : s( schedules[ i ] ?? schedules[ 0 ]! ),
-        quotas    : randomQuotas( Math.floor( capacity * 0.6 ) ),
+        quotas    : Math.floor( capacity * 0.6 ),
         capacity,
-    }) );
+    }));
 }
 
 // MockStatus ensures only valid SubjectAcademicStatus values are used in this file
 type MockStatus = SubjectAcademicStatus;
 
 // ─── Subjects ─────────────────────────────────────────────────────────────────
-
 const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
     // ───── SEMESTRE 1 ─────
     {
@@ -727,16 +752,13 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
 ];
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
-
-export async function GET( _req: NextRequest ): Promise<NextResponse> {
+export async function GET( req: NextRequest ): Promise<NextResponse> {
     await new Promise<void>( ( resolve ) => setTimeout( resolve, 2000 ) );
 
-    const subjects: Subject[] = BASE_SUBJECTS.map( ( subj ) => ({
-        ...subj,
-        quotas : randomQuotas(
-            [ 'subj-01', 'subj-04', 'subj-16' ].includes( subj.id ) ? 2 : 30
-        ),
-    }) );
+    const { searchParams } = new URL( req.url );
+    const reset            = searchParams.get( 'reset' ) === 'true';
 
-    return NextResponse.json( subjects );
+    initGlobalSubjects( reset );
+
+    return NextResponse.json( globalThis.siiraSubjects );
 }
