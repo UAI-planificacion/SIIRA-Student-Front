@@ -113,7 +113,7 @@ function AvailableNode( { subject }: { subject: Subject } ): React.JSX.Element {
                             professor : subject.professor,
                             schedule  : subject.schedule,
                             quotas    : subject.quotas,
-                            capacity  : subject.quotas + 15,
+                            capacity  : 45,
                         } }
                         subject={ subject }
                     />
