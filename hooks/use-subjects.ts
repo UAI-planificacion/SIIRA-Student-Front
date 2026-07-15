@@ -13,11 +13,9 @@ async function fetchSubjects(): Promise<Subject[]> {
     return res.json() as Promise<Subject[]>;
 }
 
-export function useSubjects( enabledPolling : boolean = true ): UseQueryResult<Subject[], Error> {
+export function useSubjects(): UseQueryResult<Subject[], Error> {
     return useQuery<Subject[], Error>({
-        queryKey        : [ 'subjects' ],
-        queryFn         : fetchSubjects,
-        refetchInterval : enabledPolling ? 3000 : false,
-        staleTime       : 0,
+        queryKey : [ 'subjects' ],
+        queryFn  : fetchSubjects,
     });
 }
