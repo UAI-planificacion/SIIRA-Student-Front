@@ -1,23 +1,39 @@
 'use client';
 
 import { useState }       from 'react';
-import { Calendar, Lock, Save, ShoppingCart } from 'lucide-react';
+import { Lock, Save, ShoppingCart } from 'lucide-react';
 
 import { Button }            from '@/components/ui/button';
 import { ScrollArea }        from '@/components/ui/scroll-area';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+}                            from '@/components/ui/dialog';
 import { useCart }           from '@/context/cart-context';
 import { useStudent }        from '@/hooks/use-student';
-import { CalendarioDrawer }  from '../calendar/calendario-drawer';
 import { CartItem }          from './cart-item';
 import { ContadorCreditos }  from './contador-creditos';
 
 export function CarritoBorrador(): React.JSX.Element {
-    const [ calendarOpen, setCalendarOpen ] = useState( false );
-    const { draftSubjects, draftStatus, usedCredits, freezeDraft } = useCart();
+    const [ confirmOpen,     setConfirmOpen     ] = useState( false );
+    const { draftSubjects, draftStatus, usedCredits, requiredCredits, electiveCredits, freezeDraft } = useCart();
     const { data: student } = useStudent();
 
-    const isFrozen    = draftStatus === 'submitted';
+    const isFrozen     = draftStatus === 'submitted';
     const totalCredits = student?.totalCredits ?? 30;
+    const MIN_CREDITS  = 24;
+
+    function handleFreezeClick(): void {
+        if ( usedCredits < MIN_CREDITS ) {
+            setConfirmOpen( true );
+        } else {
+            freezeDraft();
+        }
+    }
 
     return (
         <aside className="h-full flex flex-col bg-card relative overflow-hidden">
@@ -46,26 +62,6 @@ export function CarritoBorrador(): React.JSX.Element {
                         { draftSubjects.length } ramos
                     </span>
                 </div>
-
-                <ContadorCreditos
-                    usedCredits={ usedCredits }
-                    totalCredits={ totalCredits }
-                />
-
-                {/* Botón calendario */ }
-                <div className="px-4 py-3 border-b border-border">
-                    <Button
-                        id="open-calendar-btn"
-                        variant="outline"
-                        size="sm"
-                        onClick={ () => setCalendarOpen( true ) }
-                        disabled={ draftSubjects.length === 0 }
-                        className="w-full h-9 text-xs font-medium gap-2"
-                    >
-                        <Calendar className="size-3.5" />
-                        Visualizar Horario Completo 🗓️
-                    </Button>
-                </div>
             </div>
 
             {/* Lista de ramos */ }
@@ -91,7 +87,7 @@ export function CarritoBorrador(): React.JSX.Element {
                 <div className="shrink-0 p-4 border-t border-border">
                     <Button
                         id="freeze-draft-btn"
-                        onClick={ freezeDraft }
+                        onClick={ handleFreezeClick }
                         disabled={ draftSubjects.length === 0 }
                         className="w-full h-10 text-sm font-semibold gap-2 bg-primary hover:bg-primary/90"
                     >
@@ -106,10 +102,39 @@ export function CarritoBorrador(): React.JSX.Element {
                 </div>
             ) }
 
-            <CalendarioDrawer
-                open={ calendarOpen }
-                onClose={ () => setCalendarOpen( false ) }
-            />
+            {/* Soft validation dialog */}
+            <Dialog open={ confirmOpen } onOpenChange={ ( _, o ) => { if ( !o ) setConfirmOpen( false ); } }>
+                <DialogContent showCloseButton>
+                    <DialogHeader>
+                        <DialogTitle>¿Enviar borrador con pocos créditos?</DialogTitle>
+
+                        <DialogDescription>
+                            Aún tienes{ ' ' }
+                            <strong>{ totalCredits - usedCredits } créditos disponibles</strong>{ ' ' }
+                            por utilizar este semestre. Puedes enviar tu inscripción ahora, pero te
+                            recomendamos completar tu carga académica recomendada de{ ' ' }
+                            <strong>{ totalCredits } créditos</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter>
+                        <Button
+                            id="dialog-btn-keep-editing"
+                            variant="outline"
+                            onClick={ () => setConfirmOpen( false ) }
+                        >
+                            Seguir editando
+                        </Button>
+
+                        <Button
+                            id="dialog-btn-confirm-freeze"
+                            onClick={ () => { setConfirmOpen( false ); freezeDraft(); } }
+                        >
+                            Confirmar y Enviar de todas formas
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </aside>
     );
 }

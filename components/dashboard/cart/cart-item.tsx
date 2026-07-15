@@ -4,6 +4,7 @@ import { X, BookOpen } from 'lucide-react';
 
 import { Button }    from '@/components/ui/button';
 import { useCart }   from '@/context/cart-context';
+import { useExecutionMode } from '@/hooks/use-execution-mode';
 import type { Subject } from '@/types/siira';
 
 interface CartItemProps {
@@ -12,6 +13,7 @@ interface CartItemProps {
 
 export function CartItem( { subject }: CartItemProps ): React.JSX.Element {
     const { removeSubject, draftStatus } = useCart();
+    const { mode } = useExecutionMode();
     const isFrozen = draftStatus === 'submitted';
 
     return (
@@ -36,7 +38,7 @@ export function CartItem( { subject }: CartItemProps ): React.JSX.Element {
                 </p>
             </div>
 
-            { !isFrozen && (
+            { !isFrozen && mode !== 'toma_ramos' && (
                 <Button
                     id={ `remove-${ subject.id }` }
                     variant="ghost"

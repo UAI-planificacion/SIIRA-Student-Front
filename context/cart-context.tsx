@@ -11,15 +11,17 @@ import {
 import type { DraftStatus, Subject } from '@/types/siira';
 
 interface CartContextValue {
-    draftSubjects : Subject[];
-    draftStatus   : DraftStatus;
-    usedCredits   : number;
-    isCartOpen    : boolean;
-    addSubject    : ( subject: Subject ) => void;
-    removeSubject : ( id: string ) => void;
-    freezeDraft   : () => void;
-    isInCart      : ( id: string ) => boolean;
-    toggleCart    : () => void;
+    draftSubjects   : Subject[];
+    draftStatus     : DraftStatus;
+    usedCredits     : number;
+    requiredCredits : number;
+    electiveCredits : number;
+    isCartOpen      : boolean;
+    addSubject      : ( subject: Subject ) => void;
+    removeSubject   : ( id: string ) => void;
+    freezeDraft     : () => void;
+    isInCart        : ( id: string ) => boolean;
+    toggleCart      : () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>( null );
@@ -35,6 +37,16 @@ export function CartProvider( { children }: CartProviderProps ): React.JSX.Eleme
 
     const usedCredits = useMemo(
         () => draftSubjects.reduce( ( acc, s ) => acc + s.credits, 0 ),
+        [ draftSubjects ]
+    );
+
+    const requiredCredits = useMemo(
+        () => draftSubjects.filter( ( s ) => s.isRequired ).reduce( ( acc, s ) => acc + s.credits, 0 ),
+        [ draftSubjects ]
+    );
+
+    const electiveCredits = useMemo(
+        () => draftSubjects.filter( ( s ) => !s.isRequired ).reduce( ( acc, s ) => acc + s.credits, 0 ),
         [ draftSubjects ]
     );
 
@@ -66,6 +78,8 @@ export function CartProvider( { children }: CartProviderProps ): React.JSX.Eleme
             draftSubjects,
             draftStatus,
             usedCredits,
+            requiredCredits,
+            electiveCredits,
             isCartOpen,
             addSubject,
             removeSubject,
@@ -73,7 +87,7 @@ export function CartProvider( { children }: CartProviderProps ): React.JSX.Eleme
             isInCart,
             toggleCart    : handleToggleCart,
         }),
-        [ draftSubjects, draftStatus, usedCredits, isCartOpen, addSubject, removeSubject, freezeDraft, isInCart, handleToggleCart ]
+        [ draftSubjects, draftStatus, usedCredits, requiredCredits, electiveCredits, isCartOpen, addSubject, removeSubject, freezeDraft, isInCart, handleToggleCart ]
     );
 
     return (

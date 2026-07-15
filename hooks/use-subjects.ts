@@ -13,11 +13,11 @@ async function fetchSubjects(): Promise<Subject[]> {
     return res.json() as Promise<Subject[]>;
 }
 
-export function useSubjects(): UseQueryResult<Subject[], Error> {
+export function useSubjects( enabledPolling : boolean = true ): UseQueryResult<Subject[], Error> {
     return useQuery<Subject[], Error>({
         queryKey        : [ 'subjects' ],
         queryFn         : fetchSubjects,
-        refetchInterval : 3000, // Polling cada 3 segundos para cupos en vivo
+        refetchInterval : enabledPolling ? 3000 : false,
         staleTime       : 0,
     });
 }

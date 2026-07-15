@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse }     from 'next/server';
 
-import type { Subject, ScheduleSlot, SubjectAcademicStatus } from '@/types/siira';
+import type { Subject, SubjectSection, ScheduleSlot, SubjectAcademicStatus } from '@/types/siira';
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -12,6 +12,23 @@ function s( slots: ScheduleSlot[] ): string {
 function randomQuotas( base: number ): number {
     const delta = Math.floor( Math.random() * 21 ) - 10;
     return Math.max( 0, base + delta );
+}
+
+/** Build two or three sections for an available_to_enroll subject */
+function mkSections(
+    subjectId : string,
+    professors : string[],
+    schedules  : ScheduleSlot[][],
+    capacity   : number = 45,
+): SubjectSection[] {
+    return professors.map( ( professor, i ) => ({
+        id        : `${ subjectId }-sec-${ i + 1 }`,
+        label     : `Sec ${ i + 1 }`,
+        professor,
+        schedule  : s( schedules[ i ] ?? schedules[ 0 ]! ),
+        quotas    : randomQuotas( Math.floor( capacity * 0.6 ) ),
+        capacity,
+    }) );
 }
 
 // MockStatus ensures only valid SubjectAcademicStatus values are used in this file
@@ -116,11 +133,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 2,
         description    : 'Procesos, hilos, scheduling, memoria virtual, sistemas de archivos y seguridad en SO.',
-        schedule       : s( [
-            { day: 'Martes', block: 5 },
-            { day: 'Jueves', block: 5 },
-            { day: 'Viernes', block: 5 },
-        ] ),
+        prerequisites  : [ 'subj-01', 'subj-03' ],
+        sections       : mkSections(
+            'subj-06',
+            [ 'Araya', 'Ríos' ],
+            [
+                [ { day: 'Martes', block: 5 }, { day: 'Jueves', block: 5 }, { day: 'Viernes', block: 5 } ],
+                [ { day: 'Lunes',  block: 5 }, { day: 'Miércoles', block: 5 }, { day: 'Viernes', block: 6 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Martes', block: 5 }, { day: 'Jueves', block: 5 }, { day: 'Viernes', block: 5 } ] ),
     },
 
     // ───── SEMESTRE 3 ─────
@@ -134,10 +156,17 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 3,
         description    : 'Modelo OSI/TCP-IP, protocolos de capa de transporte, enrutamiento y seguridad básica en redes.',
-        schedule       : s( [
-            { day: 'Lunes',     block: 6 },
-            { day: 'Miércoles', block: 6 },
-        ] ),
+        prerequisites  : [ 'subj-06' ],
+        sections       : mkSections(
+            'subj-07',
+            [ 'Poblete', 'Bravo', 'Navia' ],
+            [
+                [ { day: 'Lunes',     block: 6 }, { day: 'Miércoles', block: 6 } ],
+                [ { day: 'Martes',    block: 6 }, { day: 'Jueves',    block: 6 } ],
+                [ { day: 'Miércoles', block: 7 }, { day: 'Viernes',   block: 7 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Lunes', block: 6 }, { day: 'Miércoles', block: 6 } ] ),
     },
     {
         id             : 'subj-08',
@@ -149,10 +178,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 3,
         description    : 'Metodologías ágiles, requisitos, arquitectura de software, testing y DevOps.',
-        schedule       : s( [
-            { day: 'Martes', block: 6 },
-            { day: 'Jueves', block: 6 },
-        ] ),
+        prerequisites  : [ 'subj-04' ],
+        sections       : mkSections(
+            'subj-08',
+            [ 'Bravo', 'Cordero' ],
+            [
+                [ { day: 'Martes', block: 6 }, { day: 'Jueves', block: 6 } ],
+                [ { day: 'Lunes',  block: 7 }, { day: 'Jueves', block: 7 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Martes', block: 6 }, { day: 'Jueves', block: 6 } ] ),
     },
     {
         id             : 'subj-09',
@@ -164,11 +199,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 3,
         description    : 'Probabilidad, distribuciones, inferencia estadística, regresión y aplicaciones en ingeniería.',
-        schedule       : s( [
-            { day: 'Lunes',     block: 7 },
-            { day: 'Miércoles', block: 7 },
-            { day: 'Viernes',   block: 7 },
-        ] ),
+        prerequisites  : [ 'subj-02', 'subj-03' ],
+        sections       : mkSections(
+            'subj-09',
+            [ 'Navarro', 'Ortiz' ],
+            [
+                [ { day: 'Lunes', block: 7 }, { day: 'Miércoles', block: 7 }, { day: 'Viernes', block: 7 } ],
+                [ { day: 'Martes', block: 7 }, { day: 'Jueves',   block: 7 }, { day: 'Sábado',  block: 1 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Lunes', block: 7 }, { day: 'Miércoles', block: 7 }, { day: 'Viernes', block: 7 } ] ),
     },
 
     // ───── SEMESTRE 4 ─────
@@ -182,10 +222,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 4,
         description    : 'Análisis léxico, sintáctico y semántico, generación de código intermedio y optimización.',
-        schedule       : s( [
-            { day: 'Martes', block: 7 },
-            { day: 'Jueves', block: 7 },
-        ] ),
+        prerequisites  : [ 'subj-01', 'subj-04' ],
+        sections       : mkSections(
+            'subj-10',
+            [ 'Espinoza', 'Vidal' ],
+            [
+                [ { day: 'Martes', block: 7 }, { day: 'Jueves', block: 7 } ],
+                [ { day: 'Lunes',  block: 8 }, { day: 'Miércoles', block: 8 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Martes', block: 7 }, { day: 'Jueves', block: 7 } ] ),
     },
     {
         id             : 'subj-11',
@@ -197,11 +243,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 4,
         description    : 'Integral definida e indefinida, técnicas de integración, integrales múltiples y aplicaciones.',
-        schedule       : s( [
-            { day: 'Lunes',     block: 4 },
-            { day: 'Miércoles', block: 4 },
-            { day: 'Viernes',   block: 4 },
-        ] ),
+        prerequisites  : [ 'subj-02' ],
+        sections       : mkSections(
+            'subj-11',
+            [ 'Torres', 'Fuentes' ],
+            [
+                [ { day: 'Lunes', block: 4 }, { day: 'Miércoles', block: 4 }, { day: 'Viernes', block: 4 } ],
+                [ { day: 'Martes', block: 3 }, { day: 'Jueves', block: 3 }, { day: 'Sábado', block: 2 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Lunes', block: 4 }, { day: 'Miércoles', block: 4 }, { day: 'Viernes', block: 4 } ] ),
     },
     {
         id             : 'subj-12',
@@ -213,10 +264,16 @@ const BASE_SUBJECTS: Omit<Subject, 'quotas'>[] = [
         academicStatus : 'available_to_enroll' satisfies MockStatus,
         semester       : 4,
         description    : 'Organización del procesador, pipeline, jerarquía de memoria, RISC vs CISC y paralelismo.',
-        schedule       : s( [
-            { day: 'Martes', block: 8 },
-            { day: 'Jueves', block: 8 },
-        ] ),
+        prerequisites  : [ 'subj-06' ],
+        sections       : mkSections(
+            'subj-12',
+            [ 'Gutiérrez', 'Contreras' ],
+            [
+                [ { day: 'Martes', block: 8 }, { day: 'Jueves', block: 8 } ],
+                [ { day: 'Lunes',  block: 7 }, { day: 'Viernes', block: 7 } ],
+            ]
+        ),
+        schedule       : s( [ { day: 'Martes', block: 8 }, { day: 'Jueves', block: 8 } ] ),
     },
 
     // ───── SEMESTRE 5 ─────

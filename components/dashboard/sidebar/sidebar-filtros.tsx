@@ -1,11 +1,13 @@
 'use client';
 
 import { useFilters } from '@/context/filters-context';
+import { useExecutionMode } from '@/hooks/use-execution-mode';
 import { Switch }     from '@/components/ui/switch';
 import { Separator }  from '@/components/ui/separator';
 import { Search, Filter } from 'lucide-react';
 
 export function SidebarFiltros(): React.JSX.Element {
+    const { mode } = useExecutionMode();
     const {
         searchQuery,
         showRequired,
@@ -13,12 +15,14 @@ export function SidebarFiltros(): React.JSX.Element {
         scheduleBlock,
         hideCollisions,
         hideNoQuotas,
+        hideExceedingCredits,
         setSearchQuery,
         setShowRequired,
         setShowOptional,
         setScheduleBlock,
         setHideCollisions,
         setHideNoQuotas,
+        setHideExceedingCredits,
     } = useFilters();
 
     return (
@@ -141,24 +145,26 @@ export function SidebarFiltros(): React.JSX.Element {
                 </p>
 
                 {/* Ocultar sin cupos */}
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-3">
-                        <label
-                            htmlFor="hide-no-quotas"
-                            className="text-sm text-foreground leading-snug cursor-pointer"
-                        >
-                            Ocultar sin cupos
-                        </label>
-                        <Switch
-                            id="hide-no-quotas"
-                            checked={ hideNoQuotas }
-                            onCheckedChange={ setHideNoQuotas }
-                        />
+                { mode !== 'planificacion' && (
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                            <label
+                                htmlFor="hide-no-quotas"
+                                className="text-sm text-foreground leading-snug cursor-pointer"
+                            >
+                                Ocultar sin cupos
+                            </label>
+                            <Switch
+                                id="hide-no-quotas"
+                                checked={ hideNoQuotas }
+                                onCheckedChange={ setHideNoQuotas }
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Oculta ramos con 0 cupos disponibles.
+                        </p>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                        Oculta ramos con 0 cupos disponibles.
-                    </p>
-                </div>
+                ) }
 
                 {/* Ocultar colisiones */}
                 <div className="space-y-1">
@@ -177,6 +183,26 @@ export function SidebarFiltros(): React.JSX.Element {
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                         Filtra ramos que se solapan con tu carrito.
+                    </p>
+                </div>
+
+                {/* Filtrar por créditos disponibles */}
+                <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-3">
+                        <label
+                            htmlFor="hide-exceeding-credits"
+                            className="text-sm text-foreground leading-snug cursor-pointer"
+                        >
+                            Filtrar por créditos disponibles
+                        </label>
+                        <Switch
+                            id="hide-exceeding-credits"
+                            checked={ hideExceedingCredits }
+                            onCheckedChange={ setHideExceedingCredits }
+                        />
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Muestra solo ramos que quepan con tus créditos restantes.
                     </p>
                 </div>
             </div>

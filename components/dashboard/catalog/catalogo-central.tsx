@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import Fuse from 'fuse.js';
 
@@ -10,16 +10,15 @@ import {
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs';
-import { useCart }    from '@/context/cart-context';
-import { useFilters } from '@/context/filters-context';
-import { useSubjects }           from '@/hooks/use-subjects';
+import { useCart }          from '@/context/cart-context';
+import { useFilters }       from '@/context/filters-context';
+import { useSubjects }      from '@/hooks/use-subjects';
+import { useStudent }       from '@/hooks/use-student';
+import { useExecutionMode } from '@/hooks/use-execution-mode';
 import type { ScheduleSlot, Subject } from '@/types/siira';
 import { HorarioGrid, HorarioGridSkeleton } from '../shared/grid/horario-grid';
-import { SubjectCardSkeleton }              from './subject-card-skeleton';
-import { VirtualGrid }                      from './virtual-grid';
-import { MallaSemestral }                  from '../malla/malla-semestral';
-import { KanbanBloques }                   from '../kanban/kanban-bloques';
 import { ScheduleGenerator }               from '../generator/schedule-generator';
+import { PlanEstudiosView }                from '../plan-estudios/plan-estudios-view';
 import { ChevronLeft, ChevronRight, Filter, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -47,12 +46,21 @@ function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type CatalogTab = 'horario' | 'catalogo' | 'semestre' | 'bloques' | 'generar';
+type CatalogTab = 'horario' | 'plan' | 'generar';
 
 export function CatalogoCentral(): React.JSX.Element {
+    const { mode } = useExecutionMode();
     const [ activeTab, setActiveTab ] = useState<CatalogTab>( 'horario' );
 
-    const { data: subjects, isLoading, isError } = useSubjects();
+    // Prevent staying on Generar tab if we enter Toma de Ramos mode
+    useEffect( () => {
+        if ( mode === 'toma_ramos' && activeTab === 'generar' ) {
+            setActiveTab( 'horario' );
+        }
+    }, [ mode, activeTab ] );
+
+    const { data: subjects, isLoading, isError } = useSubjects( mode === 'toma_ramos' );
+    const { data: student }                      = useStudent();
     const {
         searchQuery,
         showRequired,
@@ -60,10 +68,11 @@ export function CatalogoCentral(): React.JSX.Element {
         scheduleBlock,
         hideCollisions,
         hideNoQuotas,
+        hideExceedingCredits,
         isSidebarOpen,
         toggleSidebar,
     } = useFilters();
-    const { draftSubjects, isCartOpen, toggleCart } = useCart();
+    const { draftSubjects, usedCredits, isCartOpen, toggleCart } = useCart();
 
     const fuse = useMemo( () => {
         if ( !subjects ) return null;
@@ -122,6 +131,13 @@ export function CatalogoCentral(): React.JSX.Element {
             } );
         }
 
+        // Hide subjects exceeding remaining credits
+        if ( hideExceedingCredits ) {
+            const maxCredits      = student?.totalCredits ?? 30;
+            const remainingCredits = maxCredits - usedCredits;
+            list = list.filter( ( s ) => s.credits <= remainingCredits );
+        }
+
         return list;
     }, [
         subjects,
@@ -132,43 +148,26 @@ export function CatalogoCentral(): React.JSX.Element {
         scheduleBlock,
         hideNoQuotas,
         hideCollisions,
+        hideExceedingCredits,
+        student,
+        usedCredits,
         draftSubjects,
     ] );
-
-    const requiredSubjects = useMemo(
-        () => filtered.filter( ( s ) => s.isRequired ),
-        [ filtered ]
-    );
-
-    const electiveSubjects = useMemo(
-        () => filtered.filter( ( s ) => !s.isRequired ),
-        [ filtered ]
-    );
 
     // ── Loading ────────────────────────────────────────────────────────────────
     if ( isLoading ) {
         return (
             <div className="flex-1 overflow-hidden flex flex-col">
-                <TabHeader activeTab={ activeTab } onTabChange={ setActiveTab } />
+                <TabHeader activeTab={ activeTab } onTabChange={ setActiveTab } mode={ mode } />
 
                 { activeTab === 'horario' ? (
                     <HorarioGridSkeleton />
-                ) : activeTab === 'semestre' ? (
-                    // MallaSemestral handles its own skeleton internally
-                    <MallaSemestral />
-                ) : activeTab === 'bloques' ? (
-                    // KanbanBloques handles its own skeleton internally
-                    <KanbanBloques />
-                ) : activeTab === 'generar' ? (
+                ) : activeTab === 'plan' ? (
+                    // PlanEstudiosView handles its own skeleton internally
+                    <PlanEstudiosView />
+                ) : (
                     // ScheduleGenerator handles its own skeleton internally
                     <ScheduleGenerator />
-                ) : (
-                    <div className="flex-1 overflow-hidden px-4 py-4 space-y-4">
-                        <div className="h-5 w-48 bg-muted rounded animate-pulse" />
-                        { Array.from( { length: 6 } ).map( ( _, i ) => (
-                            <SubjectCardSkeleton key={ i } />
-                        ) ) }
-                    </div>
                 ) }
             </div>
         );
@@ -187,7 +186,7 @@ export function CatalogoCentral(): React.JSX.Element {
     if ( filtered.length === 0 ) {
         return (
             <div className="flex-1 flex flex-col">
-                <TabHeader activeTab={ activeTab } onTabChange={ setActiveTab } />
+                <TabHeader activeTab={ activeTab } onTabChange={ setActiveTab } mode={ mode } />
 
                 <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
                     <span className="text-3xl">🔍</span>
@@ -222,142 +221,70 @@ export function CatalogoCentral(): React.JSX.Element {
 
                         <TabsList className="h-8 gap-1 bg-muted/60 p-0.5">
                             <TabsTrigger
-                                id="tab-horario"
-                                value="horario"
-                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                                id          = "tab-horario"
+                                value       = "horario"
+                                className   = "h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
                             >
                                 📅 Horario
                             </TabsTrigger>
 
                             <TabsTrigger
-                                id="tab-catalogo"
-                                value="catalogo"
-                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                                id          = "tab-plan"
+                                value       = "plan"
+                                className   = "h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
                             >
-                                ☰ Catálogo
+                                🏛️ Plan
                             </TabsTrigger>
 
-                            <TabsTrigger
-                                id="tab-semestre"
-                                value="semestre"
-                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                            >
-                                📚 Semestre
-                            </TabsTrigger>
-
-                            <TabsTrigger
-                                id="tab-bloques"
-                                value="bloques"
-                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                            >
-                                📋 Bloques
-                            </TabsTrigger>
-
-                            <TabsTrigger
-                                id="tab-generar"
-                                value="generar"
-                                className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                            >
-                                ✨ Generar
-                            </TabsTrigger>
+                            { mode !== 'toma_ramos' && (
+                                <TabsTrigger
+                                    id          = "tab-generar"
+                                    value       = "generar"
+                                    className   = "h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                                >
+                                    ✨ Generar
+                                </TabsTrigger>
+                            ) }
                         </TabsList>
                     </div>
 
-                    <Button variant="outline" onClick={ toggleCart }>
-                        <ShoppingCart className='size-4' />
-                        { isCartOpen ? (
-                            <ChevronRight className='size-4' />
-                        ) : (
-                            <ChevronLeft className='size-4' />
-                        ) }
-                    </Button>
+                    { mode !== 'toma_ramos' && (
+                        <Button variant="outline" onClick={ toggleCart }>
+                            <ShoppingCart className='size-4' />
+                            { isCartOpen ? (
+                                <ChevronRight className='size-4' />
+                            ) : (
+                                <ChevronLeft className='size-4' />
+                            )}
+                        </Button>
+                    ) }
                 </div>
 
                 {/* Horario tab */}
                 <TabsContent
-                    value="horario"
-                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col relative"
+                    value       = "horario"
+                    className   = "flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col relative"
                 >
                     <HorarioGrid mode="catalog" subjects={ filtered } />
                 </TabsContent>
 
-                {/* Catálogo tab */}
+                {/* Plan de Estudios tab */}
                 <TabsContent
-                    value="catalogo"
-                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                    value       = "plan"
+                    className   = "flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
                 >
-                    { searchQuery.trim() ? (
-                        <div className="flex-1 overflow-hidden px-4 py-4 h-full">
-                            <VirtualGrid subjects={ filtered } />
-                        </div>
-                    ) : (
-                        <div className="flex-1 overflow-hidden px-4 py-4 flex flex-col gap-1 h-full">
-                            { requiredSubjects.length > 0 && (
-                                <div className="shrink-0">
-                                    <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm">
-                                        <div className="h-4 w-1 rounded-full bg-blue-500" />
-                                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                            Sugeridos para tu semestre
-                                        </h2>
-                                        <span className="text-xs text-muted-foreground/60">
-                                            ({ requiredSubjects.length })
-                                        </span>
-                                    </div>
-                                </div>
-                            ) }
-
-                            { requiredSubjects.length > 0 && (
-                                <div className="flex-1 min-h-0 overflow-hidden">
-                                    <VirtualGrid subjects={ requiredSubjects } />
-                                </div>
-                            ) }
-
-                            { electiveSubjects.length > 0 && (
-                                <div className="shrink-0 mt-4">
-                                    <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm">
-                                        <div className="h-4 w-1 rounded-full bg-violet-500" />
-                                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                            Electivos
-                                        </h2>
-                                        <span className="text-xs text-muted-foreground/60">
-                                            ({ electiveSubjects.length })
-                                        </span>
-                                    </div>
-                                </div>
-                            ) }
-
-                            { electiveSubjects.length > 0 && (
-                                <div className="flex-1 min-h-0 overflow-hidden">
-                                    <VirtualGrid subjects={ electiveSubjects } />
-                                </div>
-                            ) }
-                        </div>
-                    ) }
-                </TabsContent>
-
-                {/* Semestre tab */}
-                <TabsContent
-                    value="semestre"
-                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
-                >
-                    <MallaSemestral />
-                </TabsContent>
-
-                {/* Bloques tab */}
-                <TabsContent
-                    value="bloques"
-                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
-                >
-                    <KanbanBloques />
+                    <PlanEstudiosView />
                 </TabsContent>
 
                 {/* Generar tab */}
-                <TabsContent
-                    value="generar"
-                    className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
-                >
-                    <ScheduleGenerator />
-                </TabsContent>
+                { mode !== 'toma_ramos' && (
+                    <TabsContent
+                        value       = "generar"
+                        className   = "flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+                    >
+                        <ScheduleGenerator />
+                    </TabsContent>
+                ) }
             </Tabs>
         </div>
     );
@@ -368,9 +295,10 @@ export function CatalogoCentral(): React.JSX.Element {
 interface TabHeaderProps {
     activeTab   : CatalogTab;
     onTabChange : ( tab: CatalogTab ) => void;
+    mode        : string;
 }
 
-function TabHeader( { activeTab, onTabChange }: TabHeaderProps ): React.JSX.Element {
+function TabHeader( { activeTab, onTabChange, mode }: TabHeaderProps ): React.JSX.Element {
     return (
         <div className="shrink-0 px-4 pt-3 pb-0 border-b border-border bg-background/95">
             <div className="flex gap-1 bg-muted/60 rounded-lg p-0.5 w-fit h-8">
@@ -388,56 +316,32 @@ function TabHeader( { activeTab, onTabChange }: TabHeaderProps ): React.JSX.Elem
                 </button>
 
                 <button
-                    id="tab-catalogo-fallback"
-                    onClick={ () => onTabChange( 'catalogo' ) }
-                    className={[
-                        'h-7 px-3 text-xs rounded-md transition-all',
-                        activeTab === 'catalogo'
-                            ? 'bg-background shadow-sm text-foreground font-medium'
-                            : 'text-muted-foreground hover:text-foreground',
-                    ].join( ' ' )}
-                >
-                    ☰ Catálogo
-                </button>
-
-                <button
-                    id="tab-semestre-fallback"
-                    onClick={ () => onTabChange( 'semestre' ) }
-                    className={[
-                        'h-7 px-3 text-xs rounded-md transition-all',
-                        activeTab === 'semestre'
-                            ? 'bg-background shadow-sm text-foreground font-medium'
-                            : 'text-muted-foreground hover:text-foreground',
-                    ].join( ' ' )}
-                >
-                    📚 Semestre
-                </button>
-
-                <button
-                    id="tab-bloques-fallback"
-                    onClick={ () => onTabChange( 'bloques' ) }
-                    className={[
-                        'h-7 px-3 text-xs rounded-md transition-all',
-                        activeTab === 'bloques'
-                            ? 'bg-background shadow-sm text-foreground font-medium'
-                            : 'text-muted-foreground hover:text-foreground',
-                    ].join( ' ' )}
-                >
-                    📋 Bloques
-                </button>
-
-                <button
-                    id="tab-generar-fallback"
-                    onClick={ () => onTabChange( 'generar' ) }
+                    id="tab-plan-fallback"
+                    onClick={ () => onTabChange( 'plan' ) }
                     className={ [
                         'h-7 px-3 text-xs rounded-md transition-all',
-                        activeTab === 'generar'
+                        activeTab === 'plan'
                             ? 'bg-background shadow-sm text-foreground font-medium'
                             : 'text-muted-foreground hover:text-foreground',
                     ].join( ' ' ) }
                 >
-                    ✨ Generar
+                    🏛️ Plan
                 </button>
+
+                { mode !== 'toma_ramos' && (
+                    <button
+                        id="tab-generar-fallback"
+                        onClick={ () => onTabChange( 'generar' ) }
+                        className={ [
+                            'h-7 px-3 text-xs rounded-md transition-all',
+                            activeTab === 'generar'
+                                ? 'bg-background shadow-sm text-foreground font-medium'
+                                : 'text-muted-foreground hover:text-foreground',
+                        ].join( ' ' ) }
+                    >
+                        ✨ Generar
+                    </button>
+                ) }
             </div>
         </div>
     );

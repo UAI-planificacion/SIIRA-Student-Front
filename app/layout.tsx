@@ -5,6 +5,8 @@ import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { Header }           from '@/components/shared/home/Header';
 import { QueryProvider }    from '@/providers/query-provider';
+import { CartProvider }     from '@/context/cart-context';
+import { FiltersProvider }  from '@/context/filters-context';
 import { Toaster }          from '@/components/ui/sonner';
 import { Footer }           from '@/components/shared/home/footer';
 
@@ -39,15 +41,19 @@ export default function RootLayout( { children }: Readonly<RootLayoutProps> ): R
                     disableTransitionOnChange
                 >
                     <QueryProvider>
-                        <Header />
+                        <CartProvider>
+                            <FiltersProvider>
+                                <Header />
 
-                        <main className="flex-1">
-                            { children }
-                        </main>
+                                <main className="flex-1">
+                                    { children }
+                                </main>
 
-                        <Footer />
+                                <Footer />
 
-                        <Toaster />
+                                <Toaster />
+                            </FiltersProvider>
+                        </CartProvider>
                     </QueryProvider>
                 </ThemeProvider>
             </body>
