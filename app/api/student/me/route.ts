@@ -15,7 +15,6 @@ const MOCK_STUDENT: Student = {
         startDateEjecution : new Date( "2025-03-01" ),
         endDateEjecution   : new Date( "2027-12-31" ),
         studentStartDate   : new Date( "2025-03-01" ),
-        // studentEndDate     : new Date( "2027-12-31" ),
         studyPlan : {
             status : 'freeze',
             data : {

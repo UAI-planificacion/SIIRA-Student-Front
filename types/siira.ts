@@ -54,11 +54,10 @@ export interface StudyPlan {
 }
 
 export interface ExecutionMode {
-    startDateEjecution : Date;
-    endDateEjecution   : Date;
-    studentStartDate   : Date;
-    studyPlan : StudyPlan;
-    // studentEndDate     : Date;
+    startDateEjecution  : Date;
+    endDateEjecution    : Date;
+    studentStartDate    : Date;
+    studyPlan           : StudyPlan;
 }
 
 
