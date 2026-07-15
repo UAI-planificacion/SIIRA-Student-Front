@@ -23,9 +23,9 @@ export function useExecutionMode(): UseExecutionModeResult {
 
     const { startDateEjecution, endDateEjecution, studentStartDate } = student.executionMode;
 
-    const start    = startDateEjecution ? new Date( startDateEjecution ) : null;
-    const end      = endDateEjecution ? new Date( endDateEjecution ) : null;
-    const priority = studentStartDate ? new Date( studentStartDate ) : null;
+    const start    = startDateEjecution ? new Date( startDateEjecution )    : null;
+    const end      = endDateEjecution   ? new Date( endDateEjecution )      : null;
+    const priority = studentStartDate   ? new Date( studentStartDate )      : null;
     const now      = new Date();
 
     // 1. Proceso terminado
