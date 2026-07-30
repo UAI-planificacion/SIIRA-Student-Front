@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 
+import { ChevronLeft, ChevronRight, Filter, ShoppingCart } from 'lucide-react';
 import Fuse from 'fuse.js';
 
 import {
@@ -9,21 +10,21 @@ import {
     TabsContent,
     TabsList,
     TabsTrigger,
-} from '@/components/ui/tabs';
-import { useCart }          from '@/context/cart-context';
-import { useFilters }       from '@/context/filters-context';
-import { useSubjects }      from '@/hooks/use-subjects';
-import { useStudent }       from '@/hooks/use-student';
-import { useExecutionMode } from '@/hooks/use-execution-mode';
-import type { ScheduleSlot, Subject } from '@/types/siira';
-import { HorarioGrid, HorarioGridSkeleton } from '../shared/grid/horario-grid';
-import { ScheduleGenerator }               from '../generator/schedule-generator';
-import { PlanEstudiosView }                from '../plan-estudios/plan-estudios-view';
-import { ChevronLeft, ChevronRight, Filter, ShoppingCart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+}                               from '@/components/ui/tabs';
+import type {
+    ScheduleSlot,
+    Subject
+}                               from '@/types/siira';
+import { useCart }              from '@/context/cart-context';
+import { useFilters }           from '@/context/filters-context';
+import { useSubjects }          from '@/hooks/use-subjects';
+import { useStudent }           from '@/hooks/use-student';
+import { useExecutionMode }     from '@/hooks/use-execution-mode';
+import { ScheduleGenerator }    from '../generator/schedule-generator';
+import { PlanEstudiosView }     from '../plan-estudios/plan-estudios-view';
+import { Button }               from '@/components/ui/button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function parseSchedule( raw: string ): ScheduleSlot[] {
     try {
         return JSON.parse( raw ) as ScheduleSlot[];
@@ -46,16 +47,16 @@ function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type CatalogTab = 'horario' | 'plan' | 'generar';
+type CatalogTab = 'plan' | 'generar';
 
 export function CatalogoCentral(): React.JSX.Element {
     const { mode } = useExecutionMode();
-    const [ activeTab, setActiveTab ] = useState<CatalogTab>( 'horario' );
+    const [ activeTab, setActiveTab ] = useState<CatalogTab>( 'plan' );
 
     // Prevent staying on Generar tab if we enter Toma de Ramos mode
     useEffect( () => {
         if ( mode === 'toma_ramos' && activeTab === 'generar' ) {
-            setActiveTab( 'horario' );
+            setActiveTab( 'plan' );
         }
     }, [ mode, activeTab ] );
 
@@ -160,9 +161,7 @@ export function CatalogoCentral(): React.JSX.Element {
             <div className="flex-1 overflow-hidden flex flex-col">
                 <TabHeader activeTab={ activeTab } onTabChange={ setActiveTab } mode={ mode } />
 
-                { activeTab === 'horario' ? (
-                    <HorarioGridSkeleton />
-                ) : activeTab === 'plan' ? (
+                { activeTab === 'plan' ? (
                     // PlanEstudiosView handles its own skeleton internally
                     <PlanEstudiosView />
                 ) : (
@@ -221,14 +220,6 @@ export function CatalogoCentral(): React.JSX.Element {
 
                         <TabsList className="h-8 gap-1 bg-muted/60 p-0.5">
                             <TabsTrigger
-                                id          = "tab-horario"
-                                value       = "horario"
-                                className   = "h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                            >
-                                📅 Horario
-                            </TabsTrigger>
-
-                            <TabsTrigger
                                 id          = "tab-plan"
                                 value       = "plan"
                                 className   = "h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm"
@@ -259,14 +250,6 @@ export function CatalogoCentral(): React.JSX.Element {
                         </Button>
                     ) }
                 </div>
-
-                {/* Horario tab */}
-                <TabsContent
-                    value       = "horario"
-                    className   = "flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=active]:flex-col relative"
-                >
-                    <HorarioGrid mode="catalog" subjects={ filtered } />
-                </TabsContent>
 
                 {/* Plan de Estudios tab */}
                 <TabsContent
@@ -302,19 +285,6 @@ function TabHeader( { activeTab, onTabChange, mode }: TabHeaderProps ): React.JS
     return (
         <div className="shrink-0 px-4 pt-3 pb-0 border-b border-border bg-background/95">
             <div className="flex gap-1 bg-muted/60 rounded-lg p-0.5 w-fit h-8">
-                <button
-                    id="tab-horario-fallback"
-                    onClick={ () => onTabChange( 'horario' ) }
-                    className={[
-                        'h-7 px-3 text-xs rounded-md transition-all',
-                        activeTab === 'horario'
-                            ? 'bg-background shadow-sm text-foreground font-medium'
-                            : 'text-muted-foreground hover:text-foreground',
-                    ].join( ' ' )}
-                >
-                    📅 Horario
-                </button>
-
                 <button
                     id="tab-plan-fallback"
                     onClick={ () => onTabChange( 'plan' ) }
