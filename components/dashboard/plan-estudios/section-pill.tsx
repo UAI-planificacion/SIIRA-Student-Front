@@ -4,10 +4,6 @@ import { memo, useState } from 'react';
 
 import { Check, ShoppingCart, AlertCircle } from 'lucide-react';
 
-import { useCart }              from '@/context/cart-context';
-import { useExecutionMode }     from '@/hooks/use-execution-mode';
-import { useSubjectQuotas }     from '@/hooks/use-subject-quotas';
-import type { Subject, SubjectSection } from '@/types/siira';
 import {
     Dialog,
     DialogContent,
@@ -15,11 +11,13 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/components/ui/dialog';
-import { Button }               from '@/components/ui/button';
+}                                       from '@/components/ui/dialog';
+import { Button }                       from '@/components/ui/button';
+import { useCart }                      from '@/context/cart-context';
+import { useExecutionMode }             from '@/hooks/use-execution-mode';
+import type { Subject, SubjectSection } from '@/types/siira';
 
 // ─── Quota dots helper ────────────────────────────────────────────────────────
-
 function QuotaDots( { quotas, capacity }: { quotas: number; capacity: number } ): React.JSX.Element {
     const DOTS    = 5;
     const filled  = Math.round( ( quotas / Math.max( capacity, 1 ) ) * DOTS );
@@ -27,7 +25,7 @@ function QuotaDots( { quotas, capacity }: { quotas: number; capacity: number } )
 
     return (
         <span className="flex items-center gap-0.5">
-            { Array.from( { length: DOTS } ).map( ( _, i ) => (
+            { Array.from({ length: DOTS }).map(( _, i ) => (
                 <span
                     key={ i }
                     className={ [
@@ -37,31 +35,27 @@ function QuotaDots( { quotas, capacity }: { quotas: number; capacity: number } )
                             : i < filled
                                 ? 'bg-emerald-500  animate-pulse'
                                 : 'bg-muted  animate-pulse',
-                    ].join( ' ' ) }
+                    ].join( ' ' )}
                 />
-            ) ) }
+            ))}
         </span>
     );
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
-
 interface SectionPillProps {
-    section : SubjectSection;
-    subject : Subject;
+    section       : SubjectSection;
+    subject       : Subject;
+    currentQuotas : number;
+    onMouseEnter  : ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => void;
+    onMouseLeave  : () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
-function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.Element {
+function SectionPillInner( { section, subject, currentQuotas, onMouseEnter, onMouseLeave }: SectionPillProps ): React.JSX.Element {
     const { addSubject, removeSubject, draftSubjects } = useCart();
-    const { mode } = useExecutionMode();
-    const [ confirmOpen, setConfirmOpen ] = useState( false );
-
-    // Polling de cupos a nivel de asignatura en modo toma_ramos
-    const { data: liveQuotas } = useSubjectQuotas( subject.id, mode === 'toma_ramos' );
-    const liveSec              = liveQuotas?.sections.find( ( s ) => s.id === section.id );
-    const currentQuotas        = liveSec ? liveSec.quotas : section.quotas;
+    const { mode }                                     = useExecutionMode();
+    const [ confirmOpen, setConfirmOpen ]              = useState( false );
 
     const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
     const isThisSection = currentInCart?.professor === section.professor;
@@ -111,8 +105,10 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
                 type        = "button"
                 disabled    = { isDisabled }
                 onClick     = { handleClick }
+                onMouseEnter= { ( e ) => onMouseEnter( subject, section, e ) }
+                onMouseLeave= { onMouseLeave }
                 className   = {[
-                    'group flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium transition-all duration-150 text-left',
+                    'group flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium transition-all duration-150 text-left w-full',
                     isThisSection
                         ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
                         : isInCart
@@ -133,6 +129,11 @@ function SectionPillInner( { section, subject }: SectionPillProps ): React.JSX.E
 
                 <span>
                     <span className="font-semibold">{ section.label }</span>
+                    { section.isEnglish && (
+                        <span className="ml-1 bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[8px] px-1 py-0.5 rounded font-bold shrink-0">
+                            EN
+                        </span>
+                    ) }
                     { ' · ' }
                     { section.professor }
                 </span>
