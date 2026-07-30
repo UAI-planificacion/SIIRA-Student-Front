@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { JSX, memo } from 'react';
 
 import { BookOpen, Check, Users } from 'lucide-react';
 
@@ -20,16 +20,22 @@ interface ProposalCardProps {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-function ProposalCardInner(
-    { proposal, index, isActive, isAlreadyApplied, onActivate, onDeactivate, onApply }: ProposalCardProps
-): React.JSX.Element {
+function ProposalCardInner({
+    proposal,
+    index,
+    isActive,
+    isAlreadyApplied,
+    onActivate,
+    onDeactivate,
+    onApply
+}: ProposalCardProps ): JSX.Element {
     return (
         <div
-            onMouseEnter={ onActivate }
-            onMouseLeave={ onDeactivate }
-            onClick={ onActivate }
-            className={ [
-                'relative flex flex-col gap-3 rounded-xl border p-4 cursor-pointer transition-all duration-200 group min-w-[220px]',
+            onMouseEnter    = { onActivate }
+            onMouseLeave    = { onDeactivate }
+            onClick         = { onActivate }
+            className       = { [
+                'relative flex flex-col gap-3 rounded-xl border p-4 cursor-pointer transition-all duration-200 group min-w-55',
                 isActive
                     ? 'border-primary/60 bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/20'
                     : 'border-border bg-card hover:border-primary/30 hover:shadow-sm',
@@ -108,14 +114,14 @@ function ProposalCardInner(
 
             {/* CTA */}
             <Button
-                id={ `btn-apply-proposal-${ proposal.id }` }
-                size="sm"
-                variant={ isAlreadyApplied ? 'default' : 'outline' }
-                disabled={ isAlreadyApplied }
-                onClick={ ( e ) => {
+                id          = { `btn-apply-proposal-${ proposal.id }` }
+                size        = "sm"
+                variant     = { isAlreadyApplied ? 'default' : 'outline' }
+                disabled    = { isAlreadyApplied }
+                onClick     = { ( e ) => {
                     e.stopPropagation();
                     onApply();
-                } }
+                }}
                 className="h-8 text-xs font-semibold w-full mt-auto"
             >
                 { isAlreadyApplied ? (
@@ -125,7 +131,7 @@ function ProposalCardInner(
                     </>
                 ) : (
                     '✅ Aplicar esta Combinación'
-                ) }
+                )}
             </Button>
         </div>
     );
