@@ -5,6 +5,8 @@ import { z } from 'zod';
  * Covers both client-side MSAL variables and server-side Better-Auth variables.
  */
 const envSchema = z.object({
+    NEXT_PUBLIC_REQUEST_BACK_URL : z.url({ message: 'Request back URL must be a valid URL' }).min( 1, { message: 'Request back URL is required' }),
+
     // MSAL Authentication (client-side, kept for compatibility)
     NEXT_PUBLIC_MSAL_CLIENT_ID     : z.string().min( 1, { message: 'MSAL Client ID is required' }),
     NEXT_PUBLIC_MSAL_CLIENT_SECRET : z.string().min( 1, { message: 'MSAL Client Secret is required' }),
@@ -24,6 +26,7 @@ const envSchema = z.object({
  * Parse and validate environment variables
  */
 const processEnv = {
+    NEXT_PUBLIC_REQUEST_BACK_URL    : process.env.NEXT_PUBLIC_REQUEST_BACK_URL,
     NEXT_PUBLIC_MSAL_CLIENT_ID      : process.env.NEXT_PUBLIC_MSAL_CLIENT_ID,
     NEXT_PUBLIC_MSAL_CLIENT_SECRET  : process.env.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
     NEXT_PUBLIC_MSAL_TENANT_ID      : process.env.NEXT_PUBLIC_MSAL_TENANT_ID,
@@ -52,6 +55,7 @@ if ( !parsedEnv.success ) {
  * Export validated environment variables
  */
 export const ENV = {
+    REQUEST_BACK_URL : parsedEnv.data.NEXT_PUBLIC_REQUEST_BACK_URL,
     MSAL: {
         CLIENT_ID       : parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_ID,
         CLIENT_SECRET   : parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
