@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 
 import type {
     ScheduleSlot,
-    Subject
+    Subject,
 }                       from '@/types/siira';
 import { useCart }      from '@/context/cart-context';
 import { GridTooltip }  from './grid-tooltip';
@@ -68,7 +68,7 @@ function parseSchedule( raw: string ): ScheduleSlot[] {
 export function HorarioGridSkeleton(): React.JSX.Element {
     return (
         <div className="overflow-auto h-full p-3">
-            <div className="min-w-[500px] space-y-2 animate-pulse">
+            <div className="min-w-125 space-y-2 animate-pulse">
                 <div className="grid grid-cols-[56px_repeat(6,1fr)] gap-1">
                     <div />
                     { DAYS.map( ( d ) => (
@@ -249,7 +249,7 @@ export function HorarioGrid( props: HorarioGridProps ): React.JSX.Element {
     return (
         <>
             <div className="overflow-auto h-full">
-                <table className="border-collapse text-xs w-full min-w-[540px] border border-neutral-300 dark:border-neutral-700">
+                <table className="border-collapse text-xs w-full min-w-135 border border-neutral-300 dark:border-neutral-700">
                     <thead>
                         <tr className="bg-muted/30">
                             <th className="w-14 py-2.5 text-right pr-3 text-muted-foreground font-medium text-[11px] border-b border-r border-neutral-300 dark:border-neutral-700 bg-background/50">
@@ -259,7 +259,7 @@ export function HorarioGrid( props: HorarioGridProps ): React.JSX.Element {
                             { DAYS.map( ( day ) => (
                                 <th
                                     key       = { day }
-                                    className = "py-2.5 px-2 text-center font-semibold text-foreground text-xs border-b border-r border-neutral-300 dark:border-neutral-700 last:border-r-0 min-w-[80px] bg-background/50"
+                                    className = "py-2.5 px-2 text-center font-semibold text-foreground text-xs border-b border-r border-neutral-300 dark:border-neutral-700 last:border-r-0 min-w-20 bg-background/50"
                                 >
                                     { day }
                                 </th>
@@ -361,6 +361,22 @@ export function HorarioGrid( props: HorarioGridProps ): React.JSX.Element {
             { mode === 'catalog' && tooltip && (
                 <GridTooltip
                     subject      = { tooltip.subject }
+                    section      = { tooltip.subject.sections?.[ 0 ] ?? {
+                        id          : `${ tooltip.subject.id }-sec-1`,
+                        label       : 'Sec 1',
+                        professor   : tooltip.subject.professor,
+                        schedule    : tooltip.subject.schedule,
+                        quotas      : tooltip.subject.quotas,
+                        capacity    : 45,
+                        ssec        : `${ tooltip.subject.id }-1`,
+                        sessionName : 'Asignatura',
+                        building    : null,
+                        spaceType   : null,
+                        isEnglish   : false,
+                        profEmail   : null,
+                        day         : 'Lunes',
+                        timeLabel   : '08:15 - 09:25',
+                    } }
                     x            = { tooltip.x }
                     y            = { tooltip.y }
                     alignX       = { tooltip.alignX }
