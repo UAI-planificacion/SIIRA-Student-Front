@@ -1,55 +1,63 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse }     from 'next/server';
+import { headers }          from 'next/headers';
 
-import { initGlobalSubjects } from '../../signatures/get-all/route';
+import { auth }             from '@/lib/auth';
+import type { IStudentCurriculumResponse } from '@/types/siira';
 
 export async function GET( req : NextRequest ): Promise<NextResponse> {
     const { searchParams } = new URL( req.url );
     const subjectId        = searchParams.get( 'subjectId' );
-    const reset            = searchParams.get( 'reset' ) === 'true';
-
-    if ( reset ) {
-        initGlobalSubjects( true );
-        return NextResponse.json( { message: 'Contadores reiniciados con éxito' } );
-    }
 
     if ( !subjectId ) {
         return NextResponse.json( { error: 'Falta el parámetro subjectId' }, { status: 400 } );
     }
 
-    initGlobalSubjects();
-
-    const subject = globalThis.siiraSubjects?.find( ( s ) => s.id === subjectId );
-
-    if ( !subject ) {
-        return NextResponse.json( { error: 'Asignatura no encontrada' }, { status: 404 } );
-    }
-
-    // Restar de forma aleatoria (0 o 1) cupos para simular inscripciones en vivo
-    if ( subject.sections && subject.sections.length > 0 ) {
-        subject.sections.forEach( ( sec ) => {
-            if ( sec.quotas > 0 ) {
-                const decrement = Math.random() < 0.5 ? 1 : 0;
-                sec.quotas      = Math.max( 0, sec.quotas - decrement );
-            }
+    try {
+        const session = await auth.api.getSession({
+            headers: await headers()
         });
+        const email = session?.user?.email ?? 'jane.doe@example.com';
 
-        subject.quotas = subject.sections.reduce( ( acc, s ) => acc + s.quotas, 0 );
-    } else {
-        if ( subject.quotas > 0 ) {
-            const decrement = Math.random() < 0.5 ? 1 : 0;
-            subject.quotas  = Math.max( 0, subject.quotas - decrement );
+        // Query backend NestJS service
+        const backendRes = await fetch( `http://localhost:5050/study-plan/student-email/${ encodeURIComponent( email ) }?activePeriod=true` );
+
+        if ( !backendRes.ok ) {
+            return NextResponse.json( { error: 'Error fetching study plan from backend' }, { status: backendRes.status } );
         }
-    }
 
-    return NextResponse.json({
-        subjectId : subject.id,
-        quotas    : subject.quotas,
-        sections  : subject.sections?.map( ( sec ) => ({
+        const data = await backendRes.json() as IStudentCurriculumResponse;
+
+        // Find subject in semesters
+        let subject = null;
+        for ( const sem of data.semesters ) {
+            const found = sem.subjects.find( ( s ) => s.id === subjectId );
+            if ( found ) {
+                subject = found;
+                break;
+            }
+        }
+
+        if ( !subject ) {
+            return NextResponse.json( { error: 'Asignatura no encontrada' }, { status: 404 } );
+        }
+
+        const mappedSections = subject.sections.map( ( sec ) => ({
             id     : sec.id,
-            quotas : sec.quotas,
-        }) ) ?? [
-            { id: `${ subject.id }-sec-1`, quotas: subject.quotas }
-        ],
-    });
+            quotas : Math.max( 0, sec.quota - ( sec.registered ?? 0 ) ),
+        }) );
+
+        const quotas = mappedSections.reduce( ( acc, sec ) => acc + sec.quotas, 0 );
+
+        return NextResponse.json({
+            subjectId : subject.id,
+            quotas    : quotas,
+            sections  : mappedSections.length > 0 ? mappedSections : [
+                { id: `${ subject.id }-sec-1`, quotas: quotas }
+            ],
+        });
+    } catch ( error ) {
+        console.error( 'Error in polling quotas:', error );
+        return NextResponse.json( { error: 'Internal Server Error' }, { status: 500 } );
+    }
 }
