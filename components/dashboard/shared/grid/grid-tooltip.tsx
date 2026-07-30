@@ -1,14 +1,14 @@
 'use client';
 
-import { BookOpen, Clock, User } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
 
-import { Badge }  from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useCart }   from '@/context/cart-context';
-import type { ScheduleSlot, Subject } from '@/types/siira';
+import { Badge }                        from '@/components/ui/badge';
+import type { Subject, SubjectSection } from '@/types/siira';
+
 
 interface GridTooltipProps {
     subject      : Subject;
+    section      : SubjectSection;
     x            : number;
     y            : number;
     alignX       : 'left' | 'right';
@@ -19,66 +19,39 @@ interface GridTooltipProps {
 }
 
 
-function parseSchedule( raw: string ): ScheduleSlot[] {
-    try {
-        return JSON.parse( raw ) as ScheduleSlot[];
-    } catch {
-        return [];
-    }
-}
-
-
-function getScheduleLabel( slots: ScheduleSlot[] ): string {
-    return slots
-        .reduce<string[]>( ( acc, slot ) => {
-            const existing = acc.find( ( s ) => s.startsWith( slot.day ) );
-
-            if ( existing ) {
-                return acc.map( ( s ) =>
-                    s.startsWith( slot.day ) ? `${ s }, B${ slot.block }` : s
-                );
-            }
-
-            return [ ...acc, `${ slot.day } B${ slot.block }` ];
-        }, [] )
-        .join( ' · ' );
-}
-
-
 export function GridTooltip( {
     subject,
+    section,
     x,
     y,
     alignX,
     alignY,
     onMouseEnter,
     onMouseLeave,
-    onClose,
 }: GridTooltipProps ): React.JSX.Element {
-    const { addSubject, removeSubject, isInCart, draftStatus } = useCart();
+    const historyStatus = subject.academicHistory?.status ?? null;
+    const finalGrade    = subject.academicHistory?.finalGrade ?? null;
 
-    const inCart   = isInCart( subject.id );
-    const isFrozen = draftStatus === 'submitted';
-    const disabled = subject.quotas === 0 && !inCart;
+    let academicStatusLabel = '';
+    let statusBadgeClass    = '';
 
-    const slots      = parseSchedule( subject.schedule );
-    const schedLabel = getScheduleLabel( slots );
-
-
-    function handleToggle(): void {
-        if ( inCart ) {
-            removeSubject( subject.id );
-        } else {
-            addSubject( subject );
-        }
-        onClose();
+    if ( historyStatus === 'APPROVED' ) {
+        academicStatusLabel = `Aprobado ${ finalGrade !== null ? `(${ finalGrade })` : '' }`;
+        statusBadgeClass    = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+    } else if ( historyStatus === 'FAILED' ) {
+        academicStatusLabel = `Reprobado ${ finalGrade !== null ? `(${ finalGrade })` : '' }`;
+        statusBadgeClass    = 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/20';
+    } else if ( historyStatus === 'IN_PROGRESS' ) {
+        academicStatusLabel = 'Cursando';
+        statusBadgeClass    = 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20';
+    } else if ( historyStatus === 'CREDITED' ) {
+        academicStatusLabel = 'Homologado';
+        statusBadgeClass    = 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20';
     }
 
-    const tooltipWidth  = 300;
-    const tooltipHeight = 240;
-
-    const left = alignX === 'left' ? x - tooltipWidth - 12 : x + 12;
-    const top  = alignY === 'bottom' ? y - tooltipHeight + 40 : y;
+    const tooltipWidth = 320;
+    const left         = alignX === 'left' ? x - tooltipWidth - 12 : x + 12;
+    const top          = alignY === 'bottom' ? y - 180 : y;
 
     return (
         <div
@@ -93,7 +66,7 @@ export function GridTooltip( {
                 pointerEvents : 'auto',
             })}
             className    = {([
-                'rounded-xl border border-border bg-popover shadow-xl p-4.5 space-y-4 text-popover-foreground',
+                'rounded-xl border border-border bg-popover shadow-xl p-4.5 space-y-4 text-popover-foreground max-h-100 overflow-y-auto',
                 'transition-all animate-in fade-in zoom-in-95 duration-100',
             ].join( ' ' ))}
         >
@@ -115,52 +88,79 @@ export function GridTooltip( {
                 </Badge>
             </div>
 
-            {/* Meta */}
-            <div className="space-y-1.5 border-b border-border/40 pb-3">
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <User className="size-3.5 shrink-0" />
-                    <span className="font-medium text-foreground/90">{ subject.professor }</span>
-                    <span className="mx-0.5 text-border">·</span>
-                    <BookOpen className="size-3.5 shrink-0" />
-                    <span>{ subject.credits } cr.</span>
+            {/* SSEC & SpaceType */}
+            <div className="flex items-center justify-between text-xs border-b border-border/40 pb-3">
+                <span className="font-bold text-primary dark:text-primary-foreground">
+                    SSEC: { section.ssec }
+                </span>
+                <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                    { subject.credits } cr. · { section.sessionName }
+                </span>
+            </div>
+
+            {/* Session Detail */}
+            <div className="space-y-3 text-xs border-b border-border/40 pb-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Detalle de la Sesión
                 </p>
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="size-3.5 shrink-0" />
-                    <span className="truncate">{ schedLabel }</span>
-                </p>
+
+                <div className="space-y-2 rounded-lg border border-border/40 bg-muted/10 p-3">
+                    <div className="flex items-center justify-between font-semibold">
+                        <span className="flex items-center gap-1.5">
+                            <Clock className="size-3.5 text-muted-foreground" />
+                            { section.day } · { section.timeLabel }
+                        </span>
+                        { section.isEnglish && (
+                            <Badge variant="outline" className="text-[8px] h-3.5 px-1 border-purple-400/40 text-purple-600 dark:text-purple-400 font-bold">
+                                Inglés
+                            </Badge>
+                        ) }
+                    </div>
+
+                    <div className="space-y-1 text-muted-foreground mt-2">
+                        <p className="flex items-center gap-1.5">
+                            <User className="size-3 shrink-0" />
+                            <span className="font-medium text-foreground">{ section.professor }</span>
+                            { section.profEmail && (
+                                <span className="opacity-70 text-[10px]">({ section.profEmail })</span>
+                            ) }
+                        </p>
+
+                        <p className="pl-5 text-[11px]">
+                            🏢 { section.building ?? 'Sin pabellón' } · Sala: { section.spaceType ?? 'N/A' }
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Description */}
-            <p className="text-xs text-muted-foreground leading-relaxed">
-                { subject.description }
-            </p>
+            { subject.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed border-b border-border/40 pb-3">
+                    { subject.description }
+                </p>
+            ) }
 
-            {/* Quotas & Action */}
-            <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                { subject.quotas === 0 ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-destructive animate-pulse">
+            {/* Quotas & Status */}
+            <div className="flex items-center justify-between pt-1 text-xs">
+                { section.quotas === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-destructive animate-pulse">
                         <span className="size-2 rounded-full bg-destructive" /> Sin cupos
                     </span>
-                ) : subject.quotas < 5 ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-500 animate-pulse">
-                        <span className="size-2 rounded-full bg-orange-500 animate-pulse" /> { subject.quotas } cupos
+                ) : section.quotas < 5 ? (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-orange-500 animate-pulse">
+                        <span className="size-2 rounded-full bg-orange-500 animate-pulse" /> { section.quotas }/{ section.capacity } cupos
                     </span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-500 animate-pulse">
-                        <span className="size-2 rounded-full bg-emerald-500" /> { subject.quotas } cupos
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-500">
+                        <span className="size-2 rounded-full bg-emerald-500" /> { section.quotas }/{ section.capacity } cupos
                     </span>
                 ) }
 
-                <Button
-                    id        = { `tooltip-btn-${ subject.id }` }
-                    size      = "sm"
-                    variant   = { inCart ? 'default' : 'outline' }
-                    disabled  = { disabled && !isFrozen ? disabled : isFrozen }
-                    onClick   = { handleToggle }
-                    className = "h-8 text-xs font-bold px-4"
-                >
-                    { isFrozen ? '🔒' : inCart ? 'Quitar' : disabled ? 'Sin cupos' : 'Añadir' }
-                </Button>
+                { academicStatusLabel && (
+                    <span className={ [ "px-2 py-0.5 rounded font-bold text-[9px] border", statusBadgeClass ].join( ' ' ) }>
+                        { academicStatusLabel }
+                    </span>
+                ) }
             </div>
         </div>
     );
