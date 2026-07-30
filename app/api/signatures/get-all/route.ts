@@ -87,7 +87,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                 const hasTaller = s.sections.some( ( sec: ISection ) =>
                     sec.sessions.some( ( sess: ISession ) => sess.name.toUpperCase() === 'T' )
                 );
-                const kind : 'asignatura' | 'taller' = hasTaller ? 'taller' : 'asignatura';
+                // const kind : 'asignatura' | 'taller' = hasTaller ? 'taller' : 'asignatura';
 
                 // Determine professor for legacy compatibility (first section's first session prof)
                 let professor = 'Sin profesor';
@@ -169,7 +169,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                     name            : s.name,
                     credits         : s.credits,
                     quotas          : quotas,
-                    kind            : kind,
+                    // kind            : kind,
                     professor       : professor,
                     schedule        : schedule,
                     description     : s.description,
