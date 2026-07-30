@@ -1,18 +1,23 @@
 'use client';
 
+import { Calendar, AlertOctagon } from 'lucide-react';
+
 import { useCart }          from '@/context/cart-context';
 import { useFilters }       from '@/context/filters-context';
 import { useExecutionMode } from '@/hooks/use-execution-mode';
 import { CarritoBorrador }  from '../cart/carrito-borrador';
 import { CatalogoCentral }  from '../catalog/catalogo-central';
 import { SidebarFiltros }   from '../sidebar/sidebar-filtros';
-import { Calendar, AlertOctagon, Lock } from 'lucide-react';
-import { Button }           from '@/components/ui/button';
+
 
 export function DashboardLayout(): React.JSX.Element {
+    const {
+        mode,
+        studentStartDate,
+        isLoading
+    }                       = useExecutionMode();
     const { isSidebarOpen } = useFilters();
     const { isCartOpen }    = useCart();
-    const { mode, studentStartDate, isLoading } = useExecutionMode();
 
     // Pantalla de carga inicial mientras se detecta el modo de ejecución
     if ( isLoading ) {
@@ -30,7 +35,7 @@ export function DashboardLayout(): React.JSX.Element {
     if ( mode === 'finalizado' ) {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden select-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-destructive/10 via-background to-background" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-destructive/10 via-background to-background" />
 
                 <div className="relative max-w-md w-full bg-card/65 backdrop-blur-md rounded-2xl border border-border/60 shadow-xl p-8 flex flex-col items-center text-center">
                     <div className="size-16 rounded-full bg-destructive/15 border border-destructive/20 flex items-center justify-center text-destructive mb-5 animate-bounce">
@@ -70,7 +75,7 @@ export function DashboardLayout(): React.JSX.Element {
 
         return (
             <div className="h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden select-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
 
                 <div className="relative max-w-md w-full bg-card/65 backdrop-blur-md rounded-2xl border border-border/60 shadow-xl p-8 flex flex-col items-center text-center">
                     <div className="size-16 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-primary mb-5">
@@ -112,11 +117,11 @@ export function DashboardLayout(): React.JSX.Element {
                 className = {([
                     'h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out',
                     isSidebarOpen
-                        ? 'w-[260px] opacity-100 border-r border-border'
+                        ? 'w-65 opacity-100 border-r border-border'
                         : 'w-0 opacity-0 invisible border-r-0 pointer-events-none',
                 ].join( ' ' ))}
             >
-                <div className="w-[260px] h-full">
+                <div className="w-65 h-full">
                     <SidebarFiltros />
                 </div>
             </div>
@@ -131,11 +136,11 @@ export function DashboardLayout(): React.JSX.Element {
                 className = {([
                     'h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out',
                     showCart
-                        ? 'w-[280px] opacity-100 border-l border-border'
+                        ? 'w-70 opacity-100 border-l border-border'
                         : 'w-0 opacity-0 invisible border-l-0 pointer-events-none',
                 ].join( ' ' ))}
             >
-                <div className="w-[280px] h-full">
+                <div className="w-70 h-full">
                     <CarritoBorrador />
                 </div>
             </div>
