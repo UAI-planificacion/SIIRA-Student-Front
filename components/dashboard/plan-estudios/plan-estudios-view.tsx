@@ -1,19 +1,27 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
+import {
+    BookOpen,
+    CheckCircle2,
+    Zap
+}           from 'lucide-react';
 import Fuse from 'fuse.js';
-import { BookOpen, CheckCircle2, Zap } from 'lucide-react';
 
-import { useCart }           from '@/context/cart-context';
-import { useFilters }        from '@/context/filters-context';
-import { useSubjects }       from '@/hooks/use-subjects';
-import { useStudent }        from '@/hooks/use-student';
-import type { ScheduleSlot, Subject } from '@/types/siira';
-import { PlanEstudiosNode }  from './plan-estudios-node';
+import type {
+    ScheduleSlot,
+    Subject,
+    SubjectSection
+}                           from '@/types/siira';
+import { useCart }          from '@/context/cart-context';
+import { useFilters }       from '@/context/filters-context';
+import { useSubjects }      from '@/hooks/use-subjects';
+import { useStudent }       from '@/hooks/use-student';
+import { PlanEstudiosNode } from './plan-estudios-node';
+import { GridTooltip }      from '../shared/grid/grid-tooltip';
 
 // ─── Helpers (mirrored from catalogo-central) ─────────────────────────────────
-
 function parseSchedule( raw: string ): ScheduleSlot[] {
     try {
         return JSON.parse( raw ) as ScheduleSlot[];
@@ -21,6 +29,7 @@ function parseSchedule( raw: string ): ScheduleSlot[] {
         return [];
     }
 }
+
 
 function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
     const slots = parseSchedule( subject.schedule );
@@ -35,7 +44,6 @@ function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-
 function PlanEstudiosSkeleton(): React.JSX.Element {
     return (
         <div className="flex gap-5 overflow-x-auto p-4 pb-6 min-h-0 h-full">
@@ -60,7 +68,6 @@ function PlanEstudiosSkeleton(): React.JSX.Element {
 }
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
-
 function Legend(): React.JSX.Element {
     return (
         <div className="shrink-0 flex items-center gap-4 px-4 py-2 border-b border-border bg-background/95 text-[10px] text-muted-foreground flex-wrap">
@@ -97,12 +104,12 @@ function Legend(): React.JSX.Element {
 // ─── Semester column ──────────────────────────────────────────────────────────
 
 interface SemesterColumnProps {
-    semester        : number;
-    subjects        : Subject[];
-    hoveredId       : string | null;
-    allSubjects     : Subject[];
-    onMouseEnter    : ( id: string ) => void;
-    onMouseLeave    : () => void;
+    semester     : number;
+    subjects     : Subject[];
+    hoveredId    : string | null;
+    allSubjects  : Subject[];
+    onMouseEnter : ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => void;
+    onMouseLeave : () => void;
 }
 
 function SemesterColumn(
@@ -162,26 +169,35 @@ function SemesterColumn(
             </div>
 
             {/* Subject nodes */}
-            { subjects.map( ( subject ) => (
+            { subjects.map(( subject ) => (
                 <PlanEstudiosNode
-                    key={ subject.id }
-                    subject={ subject }
-                    highlightYellow={ prerequisiteIds.has( subject.id ) }
-                    highlightBlue={ unlockedIds.has( subject.id ) }
-                    onMouseEnter={ onMouseEnter }
-                    onMouseLeave={ onMouseLeave }
+                    key             = { subject.id }
+                    subject         = { subject }
+                    highlightYellow = { prerequisiteIds.has( subject.id ) }
+                    highlightBlue   = { unlockedIds.has( subject.id ) }
+                    onMouseEnter    = { onMouseEnter }
+                    onMouseLeave    = { onMouseLeave }
                 />
-            ) ) }
+            ))}
         </div>
     );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-
 export function PlanEstudiosView(): React.JSX.Element {
     const { data: subjects, isLoading } = useSubjects();
     const { data: student }             = useStudent();
     const [ hoveredId, setHoveredId ]   = useState<string | null>( null );
+
+    const [ tooltip, setTooltip ] = useState<{
+        subject : Subject;
+        section : SubjectSection;
+        x       : number;
+        y       : number;
+        alignX  : 'left' | 'right';
+        alignY  : 'top' | 'bottom';
+    } | null>( null );
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>( null );
 
     const {
         searchQuery,
@@ -195,8 +211,41 @@ export function PlanEstudiosView(): React.JSX.Element {
 
     const { draftSubjects, usedCredits } = useCart();
 
-    const handleMouseEnter = useCallback( ( id: string ) => setHoveredId( id ), [] );
-    const handleMouseLeave = useCallback( () => setHoveredId( null ), [] );
+    const handleNodeMouseEnter = useCallback( ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => {
+        if ( hideTimer.current ) clearTimeout( hideTimer.current );
+
+        setHoveredId( subject.id );
+
+        const rect   = ( e.currentTarget as HTMLElement ).getBoundingClientRect();
+        const alignX = rect.left > window.innerWidth / 2 ? 'left' : 'right';
+        const alignY = rect.top > window.innerHeight / 2 ? 'bottom' : 'top';
+        const xPos   = alignX === 'left' ? rect.left : rect.right;
+        const yPos   = rect.top;
+
+        setTooltip({
+            subject,
+            section,
+            x       : xPos,
+            y       : yPos,
+            alignX,
+            alignY,
+        });
+    }, [] );
+
+    const handleNodeMouseLeave = useCallback( () => {
+        setHoveredId( null );
+        hideTimer.current = setTimeout( () => {
+            setTooltip( null );
+        }, 150 );
+    }, [] );
+
+    const handleTooltipEnter = useCallback( () => {
+        if ( hideTimer.current ) clearTimeout( hideTimer.current );
+    }, [] );
+
+    const handleTooltipLeave = useCallback( () => {
+        setTooltip( null );
+    }, [] );
 
     // ── Fuse instance for available subjects only ──
     const fuse = useMemo( () => {
@@ -346,19 +395,33 @@ export function PlanEstudiosView(): React.JSX.Element {
             {/* Scrollable grid */}
             <div className="flex-1 overflow-auto">
                 <div className="flex gap-5 p-4 pb-8 h-full min-w-max">
-                    { allSemesters.map( ( semester ) => (
+                    { allSemesters.map(( semester ) => (
                         <SemesterColumn
-                            key={ semester }
-                            semester={ semester }
-                            subjects={ bySemester.get( semester ) ?? [] }
-                            hoveredId={ hoveredId }
-                            allSubjects={ subjects ?? [] }
-                            onMouseEnter={ handleMouseEnter }
-                            onMouseLeave={ handleMouseLeave }
+                            key             = { semester }
+                            semester        = { semester }
+                            subjects        = { bySemester.get( semester ) ?? [] }
+                            hoveredId       = { hoveredId }
+                            allSubjects     = { subjects ?? [] }
+                            onMouseEnter    = { handleNodeMouseEnter }
+                            onMouseLeave    = { handleNodeMouseLeave }
                         />
-                    ) ) }
+                    ))}
                 </div>
             </div>
+
+            { tooltip && (
+                <GridTooltip
+                    subject      = { tooltip.subject }
+                    section      = { tooltip.section }
+                    x            = { tooltip.x }
+                    y            = { tooltip.y }
+                    alignX       = { tooltip.alignX }
+                    alignY       = { tooltip.alignY }
+                    onMouseEnter = { handleTooltipEnter }
+                    onMouseLeave = { handleTooltipLeave }
+                    onClose      = { () => setTooltip( null ) }
+                />
+            ) }
         </div>
     );
 }
