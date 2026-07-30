@@ -1,28 +1,34 @@
 'use client';
 
-import { memo } from 'react';
+import React, { JSX, memo, useMemo } from 'react';
 
 import { Check, CheckCircle2, Clock } from 'lucide-react';
 
-import { Badge }   from '@/components/ui/badge';
-import type { Subject } from '@/types/siira';
-import { SectionPill } from './section-pill';
+import { Badge }                            from '@/components/ui/badge';
+import { useCart }                          from '@/context/cart-context';
+import { useFilters }                       from '@/context/filters-context';
+import { useExecutionMode }                 from '@/hooks/use-execution-mode';
+import { useSubjectQuotas }                 from '@/hooks/use-subject-quotas';
+import type { SubjectQuotasData }           from '@/hooks/use-subject-quotas';
+import type { Subject, SubjectSection }     from '@/types/siira';
+import { SectionPill }                      from './section-pill';
+
+// Constante para controlar si el estado CREDITED (homologado) se puede volver a seleccionar
+const ALLOW_SELECT_CREDITED = false;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
-
 interface PlanEstudiosNodeProps {
     subject         : Subject;
     highlightYellow : boolean; // Is a prerequisite of the currently hovered subject
     highlightBlue   : boolean; // Is unlocked by the currently hovered subject
-    onMouseEnter    : ( id: string ) => void;
+    onMouseEnter    : ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => void;
     onMouseLeave    : () => void;
 }
 
 // ─── Approved node (compact) ─────────────────────────────────────────────────
-
-function ApprovedNode( { subject }: { subject: Subject } ): React.JSX.Element {
+function ApprovedNode( { subject }: { subject: Subject } ): JSX.Element {
     return (
-        <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 px-3 py-2 opacity-60">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500/5 px-3 py-2 opacity-80">
             <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
 
             <div className="min-w-0 flex-1">
@@ -31,7 +37,7 @@ function ApprovedNode( { subject }: { subject: Subject } ): React.JSX.Element {
                 </p>
 
                 <p className="text-[9px] text-muted-foreground mt-0.5">
-                    { subject.credits } cr. · { subject.professor }
+                    { subject.credits } créditos · { subject.professor }
                 </p>
             </div>
 
@@ -40,20 +46,38 @@ function ApprovedNode( { subject }: { subject: Subject } ): React.JSX.Element {
     );
 }
 
-// ─── Pending node (compact, highlighted border) ───────────────────────────────
-
-function PendingNode( { subject }: { subject: Subject } ): React.JSX.Element {
+// ─── In Progress node (compact, amber border) ───────────────────────────────
+function InProgressNode( { subject }: { subject: Subject } ): JSX.Element {
     return (
-        <div className="flex items-center gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2">
-            <Clock className="size-3.5 text-yellow-500 shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-500/5 px-3 py-2">
+            <Clock className="size-3.5 text-amber-500 shrink-0" />
 
             <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-foreground/70 line-clamp-1 leading-tight">
+                <p className="text-[11px] font-medium text-foreground/75 line-clamp-1 leading-tight">
                     { subject.name }
                 </p>
 
                 <p className="text-[9px] text-muted-foreground mt-0.5">
-                    { subject.credits } cr. · pendiente
+                    { subject.credits } créditos · cursando
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// ─── Credited node (compact, purple border) ──────────────────────────────────
+function CreditedNode( { subject }: { subject: Subject } ): JSX.Element {
+    return (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-500 bg-purple-500/5 px-3 py-2 opacity-80">
+            <CheckCircle2 className="size-3.5 text-purple-500 shrink-0" />
+
+            <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-foreground line-clamp-1 leading-tight">
+                    { subject.name }
+                </p>
+
+                <p className="text-[9px] text-muted-foreground mt-0.5">
+                    { subject.credits } créditos · homologado
                 </p>
             </div>
         </div>
@@ -61,12 +85,39 @@ function PendingNode( { subject }: { subject: Subject } ): React.JSX.Element {
 }
 
 // ─── Available node (interactive, with inline sections) ───────────────────────
+interface AvailableNodeProps {
+    subject      : Subject;
+    liveQuotas  ?: SubjectQuotasData;
+    className   ?: string;
+    onMouseEnter : ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => void;
+    onMouseLeave : () => void;
+}
 
-function AvailableNode( { subject }: { subject: Subject } ): React.JSX.Element {
-    const hasSections = ( subject.sections?.length ?? 0 ) > 0;
+function AvailableNode( { subject, liveQuotas, className, onMouseEnter, onMouseLeave }: AvailableNodeProps ): JSX.Element {
+    const { hideNoQuotas }  = useFilters();
+    const { draftSubjects } = useCart();
+
+    const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
+    const hasSections   = ( subject.sections?.length ?? 0 ) > 0;
+
+    const visibleSections = useMemo( () => {
+        if ( !subject.sections ) return [];
+        if ( !hideNoQuotas ) return subject.sections;
+
+        return subject.sections.filter( ( section ) => {
+            const isThisSection = currentInCart?.professor === section.professor;
+            if ( isThisSection ) return true;
+
+            const liveSec       = liveQuotas?.sections.find( ( s ) => s.id === section.id );
+            const currentQuotas = liveSec ? liveSec.quotas : section.quotas;
+            return currentQuotas > 0;
+        } );
+    }, [ subject.sections, hideNoQuotas, liveQuotas, currentInCart ] );
+
+    const borderClass = className ?? "border-primary/30 bg-card hover:border-primary/50 shadow-sm hover:shadow-md";
 
     return (
-        <div className="rounded-lg border border-primary/30 bg-card shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-150">
+        <div className={ [ "rounded-lg border transition-all duration-150", borderClass ].join( ' ' ) }>
             {/* Header */}
             <div className="px-3 pt-2.5 pb-2 border-b border-border/40">
                 <div className="flex items-start justify-between gap-1 mb-1">
@@ -88,35 +139,56 @@ function AvailableNode( { subject }: { subject: Subject } ): React.JSX.Element {
                 </div>
 
                 <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
-                    <span>{ subject.credits } cr.</span>
-                    <span>·</span>
-                    <span className="capitalize">{ subject.kind }</span>
+                    <span>{ subject.credits } créditos</span>
                 </div>
             </div>
 
             {/* Sections */}
             <div className="px-2 py-2 space-y-1">
                 { hasSections ? (
-                    subject.sections!.map( ( section ) => (
-                        <SectionPill
-                            key={ section.id }
-                            section={ section }
-                            subject={ subject }
-                        />
-                    ) )
+                    visibleSections.map( ( section ) => {
+                        const liveSec       = liveQuotas?.sections.find( ( s ) => s.id === section.id );
+                        const currentQuotas = liveSec ? liveSec.quotas : section.quotas;
+                        return (
+                            <SectionPill
+                                key             = { section.id }
+                                section         = { section }
+                                subject         = { subject }
+                                currentQuotas   = { currentQuotas }
+                                onMouseEnter    = { onMouseEnter }
+                                onMouseLeave    = { onMouseLeave }
+                            />
+                        );
+                    } )
                 ) : (
                     // Fallback: single-section pill built from the subject itself
-                    <SectionPill
-                        section={ {
-                            id        : `${ subject.id }-sec-1`,
-                            label     : 'Sec 1',
-                            professor : subject.professor,
-                            schedule  : subject.schedule,
-                            quotas    : subject.quotas,
-                            capacity  : 45,
-                        } }
-                        subject={ subject }
-                    />
+                    ( () => {
+                        const currentQuotas = liveQuotas ? liveQuotas.quotas : subject.quotas;
+                        return (
+                            <SectionPill
+                                section         = { {
+                                    id			: `${ subject.id }-sec-1`,
+                                    label		: 'Sec 1',
+                                    professor	: subject.professor,
+                                    schedule	: subject.schedule,
+                                    quotas		: subject.quotas,
+                                    capacity	: 45,
+                                    ssec        : `${ subject.id }-1`,
+                                    sessionName : 'Asignatura',
+                                    building    : null,
+                                    spaceType   : null,
+                                    isEnglish   : false,
+                                    profEmail   : null,
+                                    day         : 'Lunes',
+                                    timeLabel   : '08:15 - 09:25',
+                                } }
+                                subject         = { subject }
+                                currentQuotas   = { currentQuotas }
+                                onMouseEnter    = { onMouseEnter }
+                                onMouseLeave    = { onMouseLeave }
+                            />
+                        );
+                    } )()
                 ) }
             </div>
         </div>
@@ -124,11 +196,40 @@ function AvailableNode( { subject }: { subject: Subject } ): React.JSX.Element {
 }
 
 // ─── Main Node ────────────────────────────────────────────────────────────────
-
 function PlanEstudiosNodeInner(
     { subject, highlightYellow, highlightBlue, onMouseEnter, onMouseLeave }: PlanEstudiosNodeProps
-): React.JSX.Element {
-    const status = subject.academicStatus;
+): JSX.Element | null {
+    const historyStatus     = subject.academicHistory?.status ?? null;
+    const { hideNoQuotas }  = useFilters();
+    const { mode }          = useExecutionMode();
+    const { draftSubjects } = useCart();
+
+    const isAvailableToEnroll = historyStatus === null || historyStatus === 'FAILED' || ( historyStatus === 'CREDITED' && ALLOW_SELECT_CREDITED );
+
+    const { data: liveQuotas } = useSubjectQuotas(
+        subject.id,
+        mode === 'toma_ramos' && isAvailableToEnroll
+    );
+
+    // If hideNoQuotas filter is enabled, check if all sections (or the subject itself) have 0 quotas
+    if ( isAvailableToEnroll && hideNoQuotas ) {
+        const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
+        // Only hide if not selected in the cart
+        if ( !currentInCart ) {
+            const hasSections = ( subject.sections?.length ?? 0 ) > 0;
+            if ( hasSections ) {
+                const allFull = subject.sections!.every( ( section ) => {
+                    const liveSec       = liveQuotas?.sections.find( ( s ) => s.id === section.id );
+                    const currentQuotas = liveSec ? liveSec.quotas : section.quotas;
+                    return currentQuotas === 0;
+                } );
+                if ( allFull ) return null;
+            } else {
+                const currentQuotas = liveQuotas ? liveQuotas.quotas : subject.quotas;
+                if ( currentQuotas === 0 ) return null;
+            }
+        }
+    }
 
     // Highlight ring based on prerequisite relationship
     const ringClass = highlightYellow
@@ -138,20 +239,41 @@ function PlanEstudiosNodeInner(
             : '';
 
     return (
-        <div
-            className={ ringClass }
-            onMouseEnter={ () => onMouseEnter( subject.id ) }
-            onMouseLeave={ onMouseLeave }
-        >
-            { status === 'approved' ? (
-                <ApprovedNode subject={ subject } />
-            ) : status === 'failed_or_pending' ? (
-                <PendingNode subject={ subject } />
+        <div className={ ringClass }>
+            { historyStatus === 'APPROVED' ? (
+                <ApprovedNode subject = { subject } />
+            ) : historyStatus === 'IN_PROGRESS' ? (
+                <InProgressNode subject = { subject } />
+            ) : historyStatus === 'CREDITED' && !ALLOW_SELECT_CREDITED ? (
+                <CreditedNode subject = { subject } />
+            ) : historyStatus === 'CREDITED' && ALLOW_SELECT_CREDITED ? (
+                <AvailableNode
+                    subject      = { subject }
+                    liveQuotas   = { liveQuotas }
+                    className    = "border-purple-500 bg-purple-500/5 hover:border-purple-600 shadow-sm hover:shadow-md"
+                    onMouseEnter = { onMouseEnter }
+                    onMouseLeave = { onMouseLeave }
+                />
+            ) : historyStatus === 'FAILED' ? (
+                <AvailableNode
+                    subject      = { subject }
+                    liveQuotas   = { liveQuotas }
+                    className    = "border-red-500 bg-red-500/5 hover:border-red-600 shadow-sm hover:shadow-md"
+                    onMouseEnter = { onMouseEnter }
+                    onMouseLeave = { onMouseLeave }
+                />
             ) : (
-                <AvailableNode subject={ subject } />
+                <AvailableNode
+                    subject      = { subject }
+                    liveQuotas   = { liveQuotas }
+                    onMouseEnter = { onMouseEnter }
+                    onMouseLeave = { onMouseLeave }
+                />
             ) }
         </div>
     );
 }
 
 export const PlanEstudiosNode = memo( PlanEstudiosNodeInner );
+
+
