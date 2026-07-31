@@ -372,6 +372,7 @@ export function HorarioGrid( props: HorarioGridProps ): React.JSX.Element {
                         sessionName : 'Asignatura',
                         building    : null,
                         spaceType   : null,
+                        spaceId     : null,
                         isEnglish   : false,
                         profEmail   : null,
                         day         : 'Lunes',
