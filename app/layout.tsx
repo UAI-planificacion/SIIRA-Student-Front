@@ -33,7 +33,7 @@ export default function RootLayout( { children }: Readonly<RootLayoutProps> ): R
             lang             = "es"
             suppressHydrationWarning
         >
-            <body className="min-h-screen flex flex-col">
+            <body className="h-screen max-h-screen overflow-hidden flex flex-col">
                 <ThemeProvider
                     attribute        = "class"
                     defaultTheme     = "light"
@@ -45,7 +45,7 @@ export default function RootLayout( { children }: Readonly<RootLayoutProps> ): R
                             <FiltersProvider>
                                 <Header />
 
-                                <main className="flex-1">
+                                <main className="flex-1 overflow-hidden flex flex-col">
                                     { children }
                                 </main>
 
