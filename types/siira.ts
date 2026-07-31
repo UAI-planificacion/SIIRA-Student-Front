@@ -35,10 +35,11 @@ export interface ISession {
 	chairsAvailable : number | null;
 	isEnglish       : boolean;
 	date            : Date;
+    spaceId         : string | null
 	professor       : IProfessor | null;
 	module          : IModule;
 	quota           : number;
-	registered?     : number | null;
+	// registered?     : number | null;
 }
 
 
@@ -105,6 +106,7 @@ export interface SubjectSection {
     sessionName : string;   // "Cátedra" | "Taller" | "Ayudantía" | "Laboratorio"
     building    : string | null;
     spaceType   : string | null;
+    spaceId     : string | null;
     isEnglish   : boolean;
     profEmail   : string | null;
     day         : Day;
