@@ -13,7 +13,7 @@ import type {
     ISession,
 }               from '@/types/siira';
 import { auth } from '@/lib/auth';
-import { ENV } from '@/config/envs/env';
+import { ENV }  from '@/config/envs/env';
 
 // Helper mapping Day index to Day strings
 const DAYS_MAP: Day[] = [
@@ -35,14 +35,12 @@ function getDayOfWeek( dateStr: string | Date ): Day {
 }
 
 
-function translateSessionName( name: string ): string {
-    const uppercaseName = name.toUpperCase();
-    if ( uppercaseName === 'C' ) return 'Cátedra';
-    if ( uppercaseName === 'T' ) return 'Taller';
-    if ( uppercaseName === 'A' ) return 'Ayudantía';
-    if ( uppercaseName === 'L' ) return 'Laboratorio';
-    return name;
-}
+const translateSessionName = ( name: string ): string => ({
+    'C': 'Cátedra',
+    'T': 'Taller',
+    'A': 'Ayudantía',
+    'L': 'Laboratorio',
+})[ name.toUpperCase() ] ?? 'Sin información';
 
 
 export async function GET( _req: NextRequest ): Promise<NextResponse> {
@@ -84,17 +82,19 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
         const subjects: Subject[] = data.semesters.flatMap( ( sem: ISemesterGroup ) =>
             sem.subjects.map( ( s: ISubject ) => {
                 // Determine kind: taller if any session name is 'T', else asignatura
-                const hasTaller = s.sections.some( ( sec: ISection ) =>
-                    sec.sessions.some( ( sess: ISession ) => sess.name.toUpperCase() === 'T' )
-                );
+                // const hasTaller = s.sections.some( ( sec: ISection ) =>
+                //     sec.sessions.some( ( sess: ISession ) => sess.name.toUpperCase() === 'T' )
+                // );
                 // const kind : 'asignatura' | 'taller' = hasTaller ? 'taller' : 'asignatura';
 
                 // Determine professor for legacy compatibility (first section's first session prof)
                 let professor = 'Sin profesor';
+
                 if ( s.sections.length > 0 ) {
                     const sectionProfs = s.sections[ 0 ]!.sessions
                         .map( ( sess: ISession ) => sess.professor?.name )
                         .filter( ( name: string | undefined ): name is string => !!name );
+
                     if ( sectionProfs.length > 0 ) {
                         professor = Array.from( new Set( sectionProfs ) ).join( ', ' );
                     }
@@ -102,6 +102,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
 
                 // Map sections to legacy SubjectSection[] where each session is a separate SubjectSection!
                 const mappedSections: SubjectSection[] = [];
+
                 s.sections.forEach( ( sec: ISection ) => {
                     sec.sessions.forEach( ( session: ISession ) => {
                         const dayStr          = getDayOfWeek( session.date );
@@ -128,6 +129,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                             sessionName : sessionNameFull,
                             building    : sec.building,
                             spaceType   : sec.spaceType,
+                            spaceId     : session.spaceId,
                             isEnglish   : session.isEnglish,
                             profEmail   : session.professor?.email ?? null,
                             day         : dayStr,
@@ -155,7 +157,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                     academicStatus = 'failed_or_pending';
                 } else {
                     // Check if prerequisites are met
-                    const hasUnapprovedPrereq = s.prerequisites.some( ( prereqId: string ) => !approvedIds.has( prereqId ) );
+                    const hasUnapprovedPrereq = s.prerequisites.some(( prereqId: string ) => !approvedIds.has( prereqId ) );
 
                     if ( hasUnapprovedPrereq ) {
                         academicStatus = 'failed_or_pending';
@@ -185,7 +187,7 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                     academicHistory : s.academicHistory,
                     rawSections     : s.sections,
                 };
-            } )
+            })
         );
 
         return NextResponse.json( subjects );
