@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { JSX, memo, useState, useMemo, type MouseEvent } from 'react';
 
-import { Check, ShoppingCart, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, BookMarked } from 'lucide-react';
 
 import {
     Dialog,
@@ -15,6 +15,7 @@ import {
 import { Button }                       from '@/components/ui/button';
 import { useCart }                      from '@/context/cart-context';
 import { useExecutionMode }             from '@/hooks/use-execution-mode';
+import { usePeriods }                   from '@/hooks/use-periods';
 import type { Subject, SubjectSection } from '@/types/siira';
 
 // ─── Quota dots helper ────────────────────────────────────────────────────────
@@ -47,26 +48,62 @@ interface SectionPillProps {
     section       : SubjectSection;
     subject       : Subject;
     currentQuotas : number;
-    onMouseEnter  : ( subject: Subject, section: SubjectSection, e: React.MouseEvent ) => void;
+    onMouseEnter  : ( subject: Subject, section: SubjectSection, e: MouseEvent ) => void;
     onMouseLeave  : () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-function SectionPillInner( { section, subject, currentQuotas, onMouseEnter, onMouseLeave }: SectionPillProps ): React.JSX.Element {
-    const { addSubject, removeSubject, draftSubjects } = useCart();
-    const { mode }                                     = useExecutionMode();
-    const [ confirmOpen, setConfirmOpen ]              = useState( false );
+function SectionPillInner({
+    section,
+    subject,
+    currentQuotas,
+    onMouseEnter,
+    onMouseLeave
+}: SectionPillProps ): JSX.Element {
+    const {
+        addSubject,
+        removeSubject,
+        draftSubjects
+    }                                       = useCart();
+    const { mode }                          = useExecutionMode();
+    const [ confirmOpen, setConfirmOpen ]   = useState( false );
+    const { data: periods }                 = usePeriods();
 
     const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
     const isThisSection = currentInCart?.professor === section.professor;
     const isInCart      = !!currentInCart;
     const isFull        = currentQuotas === 0;
 
-    // En Toma de Ramos: deshabilitado si ya hay algo en el carro (inscrito) o no hay cupo
-    // En Planificación: deshabilitado si no hay cupo y no es la sección seleccionada
-    const isDisabled = mode === 'toma_ramos'
+    // Find the raw section to read its periodId
+    const rawSec = useMemo( () => {
+        if ( !subject.rawSections ) return null;
+
+        const secId = section.id.split( '_' )[ 0 ];
+
+        return subject.rawSections.find( ( rs ) => rs.id === secId ) ?? null;
+    }, [ subject.rawSections, section.id ] );
+
+
+    const isPeriodActive = useMemo( () => {
+        if ( !periods ) return true; // Default to true while loading
+        if ( !rawSec )  return true; // Fallback if raw section info is not present
+
+        const now       = new Date();
+        const period    = periods.find( ( p ) => p.id === rawSec.periodId );
+
+        if ( !period ) return false;
+
+        const start = new Date( period.startDate );
+        const end   = new Date( period.endDate );
+
+        return now >= start && now <= end;
+    }, [ periods, rawSec ] );
+
+    // En Toma de Ramos: deshabilitado si ya hay algo en el carro (inscrito) o no hay cupo o fuera de periodo
+    // En Planificación: deshabilitado si no hay cupo y no es la sección seleccionada o fuera de periodo
+    const isDisabled = !isPeriodActive || ( mode === 'toma_ramos'
         ? ( isInCart || isFull )
-        : ( isFull && !isThisSection );
+        : ( isFull && !isThisSection ) );
 
     function handleAction(): void {
         const subjectWithSection: Subject = {
@@ -101,14 +138,15 @@ function SectionPillInner( { section, subject, currentQuotas, onMouseEnter, onMo
     return (
         <>
             <button
-                id          = { `section-pill-${ section.id }` }
-                type        = "button"
-                disabled    = { isDisabled }
-                onClick     = { handleClick }
-                onMouseEnter= { ( e ) => onMouseEnter( subject, section, e ) }
-                onMouseLeave= { onMouseLeave }
-                className   = {[
-                    'group flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium transition-all duration-150 text-left w-full',
+                id              = { `section-pill-${ section.id }` }
+                type            = "button"
+                disabled        = { isDisabled }
+                onClick         = { handleClick }
+                onMouseEnter    = { ( e ) => onMouseEnter( subject, section, e ) }
+                onMouseLeave    = { onMouseLeave }
+                aria-label      = { `${ isThisSection ? 'Quitar' : 'Añadir' } ${ section.label } — ${ section.professor }` }
+                className       = {[
+                    'group flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium transition-all duration-150 text-left w-full justify-between',
                     isThisSection
                         ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
                         : isInCart
@@ -119,41 +157,47 @@ function SectionPillInner( { section, subject, currentQuotas, onMouseEnter, onMo
                     // Evitar estilos de hover si está deshabilitado
                     isDisabled && 'cursor-not-allowed opacity-50',
                 ].join( ' ' ) }
-                aria-label={ `${ isThisSection ? 'Quitar' : 'Añadir' } ${ section.label } — ${ section.professor }` }
             >
-                { isThisSection ? (
-                    <Check className="size-2.5 text-emerald-500 shrink-0" />
-                ) : (
-                    <ShoppingCart className="size-2.5 shrink-0 opacity-50 group-hover:opacity-100" />
-                ) }
+                <div className='flex items-center gap-2'>
+                    { isThisSection ? (
+                        <Check className="size-2.5 text-emerald-500 shrink-0" />
+                    ) : (
+                        // <ShoppingCart className="size-3.5 shrink-0 opacity-50 group-hover:opacity-100" />
+                        <BookMarked className="size-3.5 shrink-0 opacity-50 group-hover:opacity-100" />
+                    )}
 
-                <span>
-                    <span className="font-semibold">{ section.label }</span>
-                    { section.isEnglish && (
-                        <span className="ml-1 bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[8px] px-1 py-0.5 rounded font-bold shrink-0">
-                            EN
+                    <div className='grid'>
+                        <span className="font-semibold">{ section.label }</span>
+                        {/* { section.isEnglish && (
+                            <span className="ml-1 bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[8px] px-1 py-0.5 rounded font-bold shrink-0">
+                                EN
+                            </span>
+                        ) } */}
+
+                        <span className='text-[9px] text-muted-foreground'>
+                            { section.professor }
                         </span>
-                    ) }
-                    { ' · ' }
-                    { section.professor }
-                </span>
+                    </div>
+                </div>
 
-                <QuotaDots quotas={ currentQuotas } capacity={ section.capacity } />
+                <div className='flex items-center gap-2'>
+                    <QuotaDots quotas={ currentQuotas } capacity={ section.capacity } />
 
-                <span className={[
-                    'ml-auto tabular-nums',
-                    currentQuotas === 0
-                        ? 'text-destructive'
-                        : currentQuotas < 10
+                    <span className={[
+                        'ml-auto tabular-nums',
+                        currentQuotas === 0
+                            ? 'text-destructive'
+                            : currentQuotas < 10
                             ? 'text-orange-500'
                             : 'text-muted-foreground',
-                ].join( ' ' )}>
-                    {/* Solo en modo toma_ramos se muestra el cupo actual */}
-                    { mode === 'toma_ramos' &&
-                        <span className={ currentQuotas === 0 ? "" : "animate-pulse"}>{ currentQuotas }/</span>
-                    }
-                    { section.capacity }
-                </span>
+                    ].join( ' ' )}>
+                        {/* Solo en modo toma_ramos se muestra el cupo actual */}
+                        { mode === 'toma_ramos' &&
+                            <span className={ currentQuotas === 0 ? "" : "animate-pulse"}>{ currentQuotas }/</span>
+                        }
+                        { section.capacity }
+                    </span>
+                </div>
             </button>
 
             {/* Dialog de confirmación de inscripción formal (Modo Toma de Ramos) */}
