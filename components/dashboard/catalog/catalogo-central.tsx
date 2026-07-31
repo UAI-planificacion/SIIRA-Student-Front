@@ -1,8 +1,13 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, JSX } from 'react';
 
-import { ChevronLeft, ChevronRight, Filter, ShoppingCart } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    ShoppingCart
+}           from 'lucide-react';
 import Fuse from 'fuse.js';
 
 import {
@@ -72,6 +77,10 @@ export function CatalogoCentral(): React.JSX.Element {
         hideExceedingCredits,
         isSidebarOpen,
         toggleSidebar,
+        selectedSessionTypes,
+        selectedDays,
+        selectedBuildings,
+        selectedSpaceTypes,
     } = useFilters();
     const { draftSubjects, usedCredits, isCartOpen, toggleCart } = useCart();
 
@@ -86,6 +95,11 @@ export function CatalogoCentral(): React.JSX.Element {
 
     const filtered = useMemo<Subject[]>( () => {
         if ( !subjects ) return [];
+
+        const hasActiveFilters = selectedSessionTypes.length > 0
+            || selectedDays.length > 0
+            || selectedBuildings.length > 0
+            || selectedSpaceTypes.length > 0;
 
         let list: Subject[] = subjects;
 
@@ -104,16 +118,44 @@ export function CatalogoCentral(): React.JSX.Element {
 
         // Filter by schedule block
         if ( scheduleBlock !== 'all' ) {
-            list = list.filter( ( s ) => {
-                const slots     = parseSchedule( s.schedule );
-                const isMorning = slots.some( ( sl ) => sl.block <= 4 );
-                const isAfternoon = slots.some( ( sl ) => sl.block >= 5 );
+            list = list.filter(( s ) => {
+                const slots         = parseSchedule( s.schedule );
+                const isMorning     = slots.some( ( sl ) => sl.block <= 4 );
+                const isAfternoon   = slots.some( ( sl ) => sl.block >= 5 );
 
                 if ( scheduleBlock === 'morning' )   return isMorning;
                 if ( scheduleBlock === 'afternoon' )  return isAfternoon;
 
                 return true;
-            } );
+            });
+        }
+
+        // Filter by advanced sidebar filters
+        if ( hasActiveFilters ) {
+            list = list.filter(( s ) => {
+                if ( s.academicStatus !== 'available_to_enroll' )   return true;
+                if ( !s.sections || s.sections.length === 0 )       return false;
+
+                return s.sections.some( ( section ) => {
+                    if ( selectedSessionTypes.length > 0 && !selectedSessionTypes.includes( section.sessionName ) ) {
+                        return false;
+                    }
+
+                    if ( selectedDays.length > 0 && !selectedDays.includes( section.day ) ) {
+                        return false;
+                    }
+
+                    if ( selectedBuildings.length > 0 && ( !section.building || !selectedBuildings.includes( section.building ) ) ) {
+                        return false;
+                    }
+
+                    if ( selectedSpaceTypes.length > 0 && ( !section.spaceType || !selectedSpaceTypes.includes( section.spaceType ) ) ) {
+                        return false;
+                    }
+
+                    return true;
+                });
+            });
         }
 
         // Hide no-quota subjects
@@ -129,13 +171,14 @@ export function CatalogoCentral(): React.JSX.Element {
                 if ( inCart ) return true;
 
                 return !hasCollision( s, draftSubjects );
-            } );
+            });
         }
 
         // Hide subjects exceeding remaining credits
         if ( hideExceedingCredits ) {
-            const maxCredits      = student?.totalCredits ?? 30;
-            const remainingCredits = maxCredits - usedCredits;
+            const maxCredits        = student?.totalCredits ?? 30;
+            const remainingCredits  = maxCredits - usedCredits;
+
             list = list.filter( ( s ) => s.credits <= remainingCredits );
         }
 
@@ -153,7 +196,11 @@ export function CatalogoCentral(): React.JSX.Element {
         student,
         usedCredits,
         draftSubjects,
-    ] );
+        selectedSessionTypes,
+        selectedDays,
+        selectedBuildings,
+        selectedSpaceTypes,
+    ]);
 
     // ── Loading ────────────────────────────────────────────────────────────────
     if ( isLoading ) {
@@ -274,14 +321,18 @@ export function CatalogoCentral(): React.JSX.Element {
 }
 
 // ─── Tab Header (extracted for loading/empty states) ─────────────────────────
-
 interface TabHeaderProps {
     activeTab   : CatalogTab;
     onTabChange : ( tab: CatalogTab ) => void;
     mode        : string;
 }
 
-function TabHeader( { activeTab, onTabChange, mode }: TabHeaderProps ): React.JSX.Element {
+
+function TabHeader({
+    activeTab,
+    onTabChange,
+    mode
+}: TabHeaderProps ): JSX.Element {
     return (
         <div className="shrink-0 px-4 pt-3 pb-0 border-b border-border bg-background/95">
             <div className="flex gap-1 bg-muted/60 rounded-lg p-0.5 w-fit h-8">
