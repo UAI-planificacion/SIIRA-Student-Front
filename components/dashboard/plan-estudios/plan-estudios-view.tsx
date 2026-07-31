@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { JSX, useCallback, useMemo, useRef, useState } from 'react';
 
 import {
     BookOpen,
@@ -44,7 +44,7 @@ function hasCollision( subject: Subject, cartSubjects: Subject[] ): boolean {
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-function PlanEstudiosSkeleton(): React.JSX.Element {
+function PlanEstudiosSkeleton(): JSX.Element {
     return (
         <div className="flex gap-5 overflow-x-auto p-4 pb-6 min-h-0 h-full">
             { Array.from( { length: 6 } ).map( ( _, col ) => (
@@ -68,9 +68,9 @@ function PlanEstudiosSkeleton(): React.JSX.Element {
 }
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
-function Legend(): React.JSX.Element {
+function Legend(): JSX.Element {
     return (
-        <div className="shrink-0 flex items-center gap-4 px-4 py-2 border-b border-border bg-background/95 text-[10px] text-muted-foreground flex-wrap">
+        <div className="flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">
             <span className="font-semibold uppercase tracking-wider">Leyenda:</span>
 
             <span className="flex items-center gap-1.5">
@@ -102,7 +102,6 @@ function Legend(): React.JSX.Element {
 }
 
 // ─── Semester column ──────────────────────────────────────────────────────────
-
 interface SemesterColumnProps {
     semester     : number;
     subjects     : Subject[];
@@ -114,7 +113,7 @@ interface SemesterColumnProps {
 
 function SemesterColumn(
     { semester, subjects, hoveredId, allSubjects, onMouseEnter, onMouseLeave }: SemesterColumnProps
-): React.JSX.Element {
+): JSX.Element {
     // Prerequisite highlight sets derived from hovered subject
     const { prerequisiteIds, unlockedIds } = useMemo( () => {
         if ( !hoveredId ) return { prerequisiteIds: new Set<string>(), unlockedIds: new Set<string>() };
@@ -140,7 +139,7 @@ function SemesterColumn(
     if ( subjects.length === 0 ) return <></>;
 
     return (
-        <div className="flex flex-col gap-2 shrink-0 w-56">
+        <div className="flex flex-col gap-2 shrink-0 w-60 border-r border-border pr-5 last:border-r-0 last:pr-0 h-full overflow-hidden">
             {/* Column header */}
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-1">
                 <div className="flex items-center justify-between mb-1">
@@ -148,19 +147,25 @@ function SemesterColumn(
                         Semestre { semester }
                     </h3>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                         { approvedCount > 0 && (
-                            <span className="flex items-center gap-0.5 text-[9px] text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 className="size-2.5" />
+                            <div
+                                className="flex items-center gap-0.5 text-[11px] text-emerald-600 dark:text-emerald-400"
+                                title='Aprobados'
+                            >
+                                <CheckCircle2 className="size-3.5" />
                                 { approvedCount }
-                            </span>
+                            </div>
                         ) }
 
                         { availableCount > 0 && (
-                            <span className="flex items-center gap-0.5 text-[9px] text-primary">
-                                <Zap className="size-2.5" />
+                            <div
+                                className="flex items-center gap-0.5 text-[11px] text-primary"
+                                title='Disponibles'
+                            >
+                                <Zap className="size-3.5" />
                                 { availableCount }
-                            </span>
+                            </div>
                         ) }
                     </div>
                 </div>
@@ -169,22 +174,24 @@ function SemesterColumn(
             </div>
 
             {/* Subject nodes */}
-            { subjects.map(( subject ) => (
-                <PlanEstudiosNode
-                    key             = { subject.id }
-                    subject         = { subject }
-                    highlightYellow = { prerequisiteIds.has( subject.id ) }
-                    highlightBlue   = { unlockedIds.has( subject.id ) }
-                    onMouseEnter    = { onMouseEnter }
-                    onMouseLeave    = { onMouseLeave }
-                />
-            ))}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-0">
+                { subjects.map( ( subject ) => (
+                    <PlanEstudiosNode
+                        key             = { subject.id }
+                        subject         = { subject }
+                        highlightYellow = { prerequisiteIds.has( subject.id ) }
+                        highlightBlue   = { unlockedIds.has( subject.id ) }
+                        onMouseEnter    = { onMouseEnter }
+                        onMouseLeave    = { onMouseLeave }
+                    />
+                ) ) }
+            </div>
         </div>
     );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function PlanEstudiosView(): React.JSX.Element {
+export function PlanEstudiosView(): JSX.Element {
     const { data: subjects, isLoading } = useSubjects();
     const { data: student }             = useStudent();
     const [ hoveredId, setHoveredId ]   = useState<string | null>( null );
@@ -207,6 +214,10 @@ export function PlanEstudiosView(): React.JSX.Element {
         hideCollisions,
         hideNoQuotas,
         hideExceedingCredits,
+        selectedSessionTypes,
+        selectedDays,
+        selectedBuildings,
+        selectedSpaceTypes,
     } = useFilters();
 
     const { draftSubjects, usedCredits } = useCart();
@@ -263,6 +274,11 @@ export function PlanEstudiosView(): React.JSX.Element {
     const filteredSubjects = useMemo<Subject[]>( () => {
         if ( !subjects ) return [];
 
+        const hasActiveFilters = selectedSessionTypes.length > 0
+            || selectedDays.length          > 0
+            || selectedBuildings.length     > 0
+            || selectedSpaceTypes.length    > 0;
+
         return subjects.filter( ( s ) => {
             // Always show non-available subjects (academic history)
             if ( s.academicStatus !== 'available_to_enroll' ) return true;
@@ -290,6 +306,32 @@ export function PlanEstudiosView(): React.JSX.Element {
 
                 if ( scheduleBlock === 'morning'   && !hasMorning   ) return false;
                 if ( scheduleBlock === 'afternoon' && !hasAfternoon ) return false;
+            }
+
+            // ── Advanced filters ──
+            if ( hasActiveFilters ) {
+                if ( !s.sections || s.sections.length === 0 ) return false;
+
+                const hasMatchingSection = s.sections.some( ( section ) => {
+                    if ( selectedSessionTypes.length > 0 && !selectedSessionTypes.includes( section.sessionName ) ) {
+                        return false;
+                    }
+
+                    if ( selectedDays.length > 0 && !selectedDays.includes( section.day ) ) {
+                        return false;
+                    }
+
+                    if ( selectedBuildings.length > 0 && ( !section.building || !selectedBuildings.includes( section.building ) ) ) {
+                        return false;
+                    }
+
+                    if ( selectedSpaceTypes.length > 0 && ( !section.spaceType || !selectedSpaceTypes.includes( section.spaceType ) ) ) {
+                        return false;
+                    }
+                    return true;
+                } );
+
+                if ( !hasMatchingSection ) return false;
             }
 
             // ── Hide no-quota subjects ──
@@ -331,6 +373,10 @@ export function PlanEstudiosView(): React.JSX.Element {
         student,
         usedCredits,
         draftSubjects,
+        selectedSessionTypes,
+        selectedDays,
+        selectedBuildings,
+        selectedSpaceTypes,
     ] );
 
     // ── Group filtered subjects by semester ──
@@ -367,33 +413,34 @@ export function PlanEstudiosView(): React.JSX.Element {
 
     return (
         <div className="flex-1 overflow-hidden flex flex-col">
-            {/* Legend */}
-            <Legend />
+            {/* Stats and Legend bar */}
+            <div className="shrink-0 px-4 py-2 -mt-1 pb-3 bg-background/80 border-b border-border flex items-center justify-between gap-4 text-[11px] text-muted-foreground flex-wrap">
+                <div className="flex items-center gap-4 flex-wrap">
+                    <span className="flex items-center gap-1">
+                        <BookOpen className="size-3" />
+                        { totalSubjects } asignaturas en el plan
+                    </span>
 
-            {/* Stats bar */}
-            <div className="shrink-0 px-4 py-2 bg-background/80 border-b border-border flex items-center gap-4 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                    <BookOpen className="size-3" />
-                    { totalSubjects } asignaturas en el plan
-                </span>
+                    <span className="text-border">·</span>
 
-                <span className="text-border">·</span>
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3" />
+                        { approvedCount } aprobadas
+                    </span>
 
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="size-3" />
-                    { approvedCount } aprobadas
-                </span>
+                    <span className="text-border">·</span>
 
-                <span className="text-border">·</span>
+                    <span className="flex items-center gap-1 text-primary">
+                        <Zap className="size-3" />
+                        { availableCount } disponibles
+                    </span>
+                </div>
 
-                <span className="flex items-center gap-1 text-primary">
-                    <Zap className="size-3" />
-                    { availableCount } disponibles
-                </span>
+                <Legend />
             </div>
 
             {/* Scrollable grid */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden custom-horizontal-scrollbar">
                 <div className="flex gap-5 p-4 pb-8 h-full min-w-max">
                     { allSemesters.map(( semester ) => (
                         <SemesterColumn
