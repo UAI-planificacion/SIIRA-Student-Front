@@ -117,13 +117,32 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
     }
-  html {
-    @apply font-sans;
+    html {
+        @apply font-sans;
     }
+}
+
+/* Custom horizontal scrollbar for the semester grid */
+.custom-horizontal-scrollbar::-webkit-scrollbar {
+    height: 10px;
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-track {
+    background: var(--muted);
+    border-radius: 9999px;
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 9999px;
+}
+
+.custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
 }
