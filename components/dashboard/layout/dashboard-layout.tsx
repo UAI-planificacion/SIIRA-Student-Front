@@ -111,7 +111,7 @@ export function DashboardLayout(): React.JSX.Element {
     const showCart = mode !== 'toma_ramos' && isCartOpen;
 
     return (
-        <div className="h-screen w-full overflow-hidden flex bg-background">
+        <div className="h-full w-full overflow-hidden flex bg-background">
             {/* Sidebar Container */}
             <div
                 className = {([
