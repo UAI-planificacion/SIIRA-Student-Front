@@ -1,10 +1,16 @@
 'use client';
 
-import { useFilters } from '@/context/filters-context';
-import { useExecutionMode } from '@/hooks/use-execution-mode';
-import { Switch }     from '@/components/ui/switch';
-import { Separator }  from '@/components/ui/separator';
 import { Search, Filter } from 'lucide-react';
+
+import { useFilters }         from '@/context/filters-context';
+import { useExecutionMode }   from '@/hooks/use-execution-mode';
+import { Switch }             from '@/components/ui/switch';
+import { Separator }          from '@/components/ui/separator';
+import { HeadquartersSelect } from '../shared/headquarters/headquarters-select';
+import { SessionTypeFilter }  from '@/components/shared/filters/session-type-filter';
+import { DayFilter }          from '@/components/shared/filters/day-filter';
+import { SpaceTypeFilter }    from '@/components/shared/filters/space-type-filter';
+
 
 export function SidebarFiltros(): React.JSX.Element {
     const { mode } = useExecutionMode();
@@ -16,6 +22,10 @@ export function SidebarFiltros(): React.JSX.Element {
         hideCollisions,
         hideNoQuotas,
         hideExceedingCredits,
+        selectedSessionTypes,
+        selectedDays,
+        selectedBuildings,
+        selectedSpaceTypes,
         setSearchQuery,
         setShowRequired,
         setShowOptional,
@@ -23,6 +33,10 @@ export function SidebarFiltros(): React.JSX.Element {
         setHideCollisions,
         setHideNoQuotas,
         setHideExceedingCredits,
+        setSelectedSessionTypes,
+        setSelectedDays,
+        setSelectedBuildings,
+        setSelectedSpaceTypes,
     } = useFilters();
 
     return (
@@ -32,6 +46,7 @@ export function SidebarFiltros(): React.JSX.Element {
                 <div className="size-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
                     <Filter className="size-3.5 text-primary-foreground" />
                 </div>
+
                 <h1 className="text-sm font-bold text-foreground tracking-tight">Filtros</h1>
             </div>
 
@@ -42,15 +57,17 @@ export function SidebarFiltros(): React.JSX.Element {
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Búsqueda
                 </label>
+
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+
                     <input
-                        id="search-input"
-                        type="text"
-                        placeholder="Nombre, profesor..."
-                        value={ searchQuery }
-                        onChange={ ( e ) => setSearchQuery( e.target.value ) }
-                        className={[
+                        id          = "search-input"
+                        type        = "text"
+                        placeholder = "Nombre, profesor..."
+                        value       = { searchQuery }
+                        onChange    = { ( e ) => setSearchQuery( e.target.value ) }
+                        className   = {[
                             'w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-input bg-background',
                             'placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring',
                             'transition-shadow duration-150',
@@ -74,12 +91,13 @@ export function SidebarFiltros(): React.JSX.Element {
                     <span className="text-sm text-foreground group-hover:text-foreground/80 transition-colors">
                         Obligatorias
                     </span>
+
                     <input
-                        id="filter-required"
-                        type="checkbox"
-                        checked={ showRequired }
-                        onChange={ ( e ) => setShowRequired( e.target.checked ) }
-                        className="size-4 rounded border-input accent-primary cursor-pointer"
+                        id          = "filter-required"
+                        type        = "checkbox"
+                        checked     = { showRequired }
+                        onChange    = { ( e ) => setShowRequired( e.target.checked ) }
+                        className   = "size-4 rounded border-input accent-primary cursor-pointer"
                     />
                 </label>
 
@@ -90,12 +108,13 @@ export function SidebarFiltros(): React.JSX.Element {
                     <span className="text-sm text-foreground group-hover:text-foreground/80 transition-colors">
                         Electivas
                     </span>
+
                     <input
-                        id="filter-optional"
-                        type="checkbox"
-                        checked={ showOptional }
-                        onChange={ ( e ) => setShowOptional( e.target.checked ) }
-                        className="size-4 rounded border-input accent-primary cursor-pointer"
+                        id          = "filter-optional"
+                        type        = "checkbox"
+                        checked     = { showOptional }
+                        onChange    = { ( e ) => setShowOptional( e.target.checked ) }
+                        className   = "size-4 rounded border-input accent-primary cursor-pointer"
                     />
                 </label>
             </div>
@@ -108,32 +127,70 @@ export function SidebarFiltros(): React.JSX.Element {
                     Bloque horario
                 </p>
 
-                { (
+                {(
                     [
                         { value: 'all',       label: 'Todos los horarios' },
                         { value: 'morning',   label: 'Mañana (B1 – B4)' },
                         { value: 'afternoon', label: 'Tarde (B5 – B8)' },
                     ] as const
-                ).map( ( { value, label } ) => (
+                ).map(({ value, label }) => (
                     <label
-                        key={ value }
-                        htmlFor={ `schedule-${ value }` }
-                        className="flex items-center gap-2.5 cursor-pointer group"
+                        key         = { value }
+                        htmlFor     = { `schedule-${ value }` }
+                        className   = "flex items-center gap-2.5 cursor-pointer group"
                     >
                         <input
-                            id={ `schedule-${ value }` }
-                            type="radio"
-                            name="schedule-block"
-                            value={ value }
-                            checked={ scheduleBlock === value }
-                            onChange={ () => setScheduleBlock( value ) }
-                            className="size-4 accent-primary cursor-pointer"
+                            id          = { `schedule-${ value }` }
+                            type        = "radio"
+                            name        = "schedule-block"
+                            value       = { value }
+                            checked     = { scheduleBlock === value }
+                            onChange    = { () => setScheduleBlock( value ) }
+                            className   = "size-4 accent-primary cursor-pointer"
                         />
+
                         <span className="text-sm text-foreground group-hover:text-foreground/80 transition-colors">
                             { label }
                         </span>
                     </label>
                 ) ) }
+            </div>
+
+            <Separator />
+
+            {/* Filtros avanzados de sesiones */}
+            <div className="space-y-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Ubicación y Sesión
+                </p>
+
+                <HeadquartersSelect
+                    label             = "Edificios"
+                    defaultValues     = { selectedBuildings }
+                    onSelectionChange = { ( val ) => setSelectedBuildings( Array.isArray( val ) ? val : val ? [ val ] : [] ) }
+                    placeholder       = "Todos los edificios"
+                />
+
+                <SessionTypeFilter
+                    label             = "Tipo de Sesión"
+                    defaultValues     = { selectedSessionTypes }
+                    onSelectionChange = { ( val ) => setSelectedSessionTypes( Array.isArray( val ) ? val : val ? [ val ] : [] ) }
+                    placeholder       = "Todos los tipos"
+                />
+
+                <DayFilter
+                    label             = "Día"
+                    defaultValues     = { selectedDays }
+                    onSelectionChange = { ( val ) => setSelectedDays( Array.isArray( val ) ? val : val ? [ val ] : [] ) }
+                    placeholder       = "Todos los días"
+                />
+
+                <SpaceTypeFilter
+                    label             = "Tipo de Espacio"
+                    defaultValues     = { selectedSpaceTypes }
+                    onSelectionChange = { ( val ) => setSelectedSpaceTypes( Array.isArray( val ) ? val : val ? [ val ] : [] ) }
+                    placeholder       = "Todos los espacios"
+                />
             </div>
 
             <Separator />
@@ -154,12 +211,14 @@ export function SidebarFiltros(): React.JSX.Element {
                             >
                                 Ocultar sin cupos
                             </label>
+
                             <Switch
-                                id="hide-no-quotas"
-                                checked={ hideNoQuotas }
-                                onCheckedChange={ setHideNoQuotas }
+                                id              = "hide-no-quotas"
+                                checked         = { hideNoQuotas }
+                                onCheckedChange = { setHideNoQuotas }
                             />
                         </div>
+
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             Oculta ramos con 0 cupos disponibles.
                         </p>
@@ -175,12 +234,14 @@ export function SidebarFiltros(): React.JSX.Element {
                         >
                             Ocultar colisiones
                         </label>
+
                         <Switch
-                            id="hide-collisions"
-                            checked={ hideCollisions }
-                            onCheckedChange={ setHideCollisions }
+                            id              = "hide-collisions"
+                            checked         = { hideCollisions }
+                            onCheckedChange = { setHideCollisions }
                         />
                     </div>
+
                     <p className="text-xs text-muted-foreground leading-relaxed">
                         Filtra ramos que se solapan con tu carrito.
                     </p>
@@ -195,12 +256,14 @@ export function SidebarFiltros(): React.JSX.Element {
                         >
                             Filtrar por créditos disponibles
                         </label>
+
                         <Switch
-                            id="hide-exceeding-credits"
-                            checked={ hideExceedingCredits }
-                            onCheckedChange={ setHideExceedingCredits }
+                            id              = "hide-exceeding-credits"
+                            checked         = { hideExceedingCredits }
+                            onCheckedChange = { setHideExceedingCredits }
                         />
                     </div>
+
                     <p className="text-xs text-muted-foreground leading-relaxed">
                         Muestra solo ramos que quepan con tus créditos restantes.
                     </p>

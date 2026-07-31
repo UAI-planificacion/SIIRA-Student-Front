@@ -19,6 +19,10 @@ interface FiltersContextValue {
     hideNoQuotas            : boolean;
     hideExceedingCredits    : boolean;
     isSidebarOpen           : boolean;
+    selectedSessionTypes    : string[];
+    selectedDays            : string[];
+    selectedBuildings       : string[];
+    selectedSpaceTypes      : string[];
     setSearchQuery          : ( q: string ) => void;
     setShowRequired         : ( v: boolean ) => void;
     setShowOptional         : ( v: boolean ) => void;
@@ -27,6 +31,10 @@ interface FiltersContextValue {
     setHideNoQuotas         : ( v: boolean ) => void;
     setHideExceedingCredits : ( v: boolean ) => void;
     toggleSidebar           : () => void;
+    setSelectedSessionTypes : ( v: string[] ) => void;
+    setSelectedDays         : ( v: string[] ) => void;
+    setSelectedBuildings    : ( v: string[] ) => void;
+    setSelectedSpaceTypes   : ( v: string[] ) => void;
 }
 
 const FiltersContext = createContext<FiltersContextValue | null>( null );
@@ -45,6 +53,11 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
     const [ hideExceedingCredits, setHideExceedingCredits ] = useState( false );
     const [ isSidebarOpen, setIsSidebarOpen ]               = useState( true );
 
+    const [ selectedSessionTypes, setSelectedSessionTypes ] = useState<string[]>( [] );
+    const [ selectedDays, setSelectedDays ]                 = useState<string[]>( [] );
+    const [ selectedBuildings, setSelectedBuildings ]       = useState<string[]>( [] );
+    const [ selectedSpaceTypes, setSelectedSpaceTypes ]     = useState<string[]>( [] );
+
     const handleSetSearchQuery             = useCallback( ( q: string )        => setSearchQuery( q ),             [] );
     const handleSetShowRequired            = useCallback( ( v: boolean )       => setShowRequired( v ),            [] );
     const handleSetShowOptional            = useCallback( ( v: boolean )       => setShowOptional( v ),            [] );
@@ -53,6 +66,11 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
     const handleSetHideNoQuotas            = useCallback( ( v: boolean )       => setHideNoQuotas( v ),            [] );
     const handleSetHideExceedingCredits    = useCallback( ( v: boolean )       => setHideExceedingCredits( v ),    [] );
     const handleToggleSidebar              = useCallback( () => setIsSidebarOpen( ( prev ) => !prev ),    [] );
+
+    const handleSetSelectedSessionTypes    = useCallback( ( v: string[] ) => setSelectedSessionTypes( v ),    [] );
+    const handleSetSelectedDays            = useCallback( ( v: string[] ) => setSelectedDays( v ),            [] );
+    const handleSetSelectedBuildings       = useCallback( ( v: string[] ) => setSelectedBuildings( v ),       [] );
+    const handleSetSelectedSpaceTypes      = useCallback( ( v: string[] ) => setSelectedSpaceTypes( v ),      [] );
 
     const value = useMemo<FiltersContextValue>(
         () => ({
@@ -64,6 +82,10 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
             hideNoQuotas,
             hideExceedingCredits,
             isSidebarOpen,
+            selectedSessionTypes,
+            selectedDays,
+            selectedBuildings,
+            selectedSpaceTypes,
             setSearchQuery          : handleSetSearchQuery,
             setShowRequired         : handleSetShowRequired,
             setShowOptional         : handleSetShowOptional,
@@ -72,6 +94,10 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
             setHideNoQuotas         : handleSetHideNoQuotas,
             setHideExceedingCredits : handleSetHideExceedingCredits,
             toggleSidebar           : handleToggleSidebar,
+            setSelectedSessionTypes : handleSetSelectedSessionTypes,
+            setSelectedDays         : handleSetSelectedDays,
+            setSelectedBuildings    : handleSetSelectedBuildings,
+            setSelectedSpaceTypes   : handleSetSelectedSpaceTypes,
         }),
         [
             searchQuery,
@@ -82,6 +108,10 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
             hideNoQuotas,
             hideExceedingCredits,
             isSidebarOpen,
+            selectedSessionTypes,
+            selectedDays,
+            selectedBuildings,
+            selectedSpaceTypes,
             handleSetSearchQuery,
             handleSetShowRequired,
             handleSetShowOptional,
@@ -90,6 +120,10 @@ export function FiltersProvider( { children }: FiltersProviderProps ): React.JSX
             handleSetHideNoQuotas,
             handleSetHideExceedingCredits,
             handleToggleSidebar,
+            handleSetSelectedSessionTypes,
+            handleSetSelectedDays,
+            handleSetSelectedBuildings,
+            handleSetSelectedSpaceTypes,
         ]
     );
 
