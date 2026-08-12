@@ -1,28 +1,34 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Image                        from "next/image"
+import { useState }     from 'react';
+import { useRouter }    from 'next/navigation';
+import Image            from "next/image"
+
 import { Calendar } from 'lucide-react';
 
-import { ModeToggle } from '@/components/shared/home/theme/mode-toggle';
-import { Login }      from '../../../Login';
-import { useCart }    from '@/context/cart-context';
-import { useStudent } from '@/hooks/use-student';
+import { Login }            from '../../../Login';
+import { useStudent }       from '@/hooks/use-student';
 import { useExecutionMode } from '@/hooks/use-execution-mode';
-import { Button }     from '@/components/ui/button';
+import { useCart }          from '@/context/cart-context';
+import { ModeToggle }       from '@/components/shared/home/theme/mode-toggle';
+import { Button }           from '@/components/ui/button';
 import { CalendarioDrawer } from '@/components/dashboard/calendar/calendario-drawer';
 
 
 export function Header(): React.JSX.Element {
-	const router = useRouter();
-	const { draftSubjects, usedCredits, requiredCredits, electiveCredits } = useCart();
-	const { data: student } = useStudent();
-	const { mode } = useExecutionMode();
+	const {
+		draftSubjects,
+		usedCredits,
+		requiredCredits,
+		electiveCredits
+	}                                       = useCart();
+	const router                            = useRouter();
+	const { data: student }                 = useStudent();
+	const { mode }                          = useExecutionMode();
 	const [ calendarOpen, setCalendarOpen ] = useState( false );
 
 	const totalCredits = student?.totalCredits ?? 30;
-	const percent      = totalCredits > 0 ? Math.min( ( usedCredits / totalCredits ) * 100, 100 ) : 0;
+	const percent      = totalCredits > 0 ? Math.min(( usedCredits / totalCredits ) * 100, 100 ) : 0;
 	const isOver       = usedCredits > totalCredits;
 	const isWarning    = !isOver && percent >= 80;
 
@@ -54,7 +60,7 @@ export function Header(): React.JSX.Element {
                             />
                         </a>
 
-                        <h1 className="hidden sm:flex text-2xl sm:text-xl lg:text-2xl xl:text-3xl font-bold text-white">Nombre Proyecto</h1>
+                        <h1 className="hidden sm:flex text-2xl sm:text-xl lg:text-2xl xl:text-3xl font-bold text-white">Inscripción de Asignaturas</h1>
                     </div>
 				</div>
 
@@ -88,6 +94,7 @@ export function Header(): React.JSX.Element {
 								<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider leading-none">
 									Créditos
 								</span>
+
 								<span className={ [
 									'text-xs font-bold tabular-nums mt-0.5',
 									isOver    ? 'text-destructive' :
@@ -104,6 +111,7 @@ export function Header(): React.JSX.Element {
 									className="absolute left-0 top-0 h-full bg-blue-500 transition-all duration-300"
 									style={ { width: `${ reqPct }%` } }
 								/>
+
 								<div
 									className="absolute top-0 h-full bg-violet-500 transition-all duration-300"
 									style={ { left: `${ reqPct }%`, width: `${ elecPct }%` } }
@@ -111,7 +119,7 @@ export function Header(): React.JSX.Element {
 							</div>
 
 							{/* Tooltip con desglose en hover */}
-							<div className="absolute top-full right-0 mt-1.5 hidden group-hover:block z-50 bg-popover text-popover-foreground border border-border rounded-lg shadow-md p-2.5 min-w-[160px] text-xs">
+							<div className="absolute top-full right-0 mt-1.5 hidden group-hover:block z-50 bg-popover text-popover-foreground border border-border rounded-lg shadow-md p-2.5 min-w-40 text-xs">
 								<p className="font-semibold mb-1.5 text-foreground">Desglose de Créditos</p>
 								<div className="space-y-1">
 									<div className="flex items-center justify-between gap-2">
@@ -119,13 +127,16 @@ export function Header(): React.JSX.Element {
 											<span className="size-2 rounded-full bg-blue-500 shrink-0" />
 											Obligatorios
 										</span>
+
 										<strong className="text-foreground">{ requiredCredits } cr.</strong>
 									</div>
+
 									<div className="flex items-center justify-between gap-2">
 										<span className="flex items-center gap-1 text-muted-foreground">
 											<span className="size-2 rounded-full bg-violet-500 shrink-0" />
 											Electivos
 										</span>
+
 										<strong className="text-foreground">{ electiveCredits } cr.</strong>
 									</div>
 								</div>
@@ -140,15 +151,17 @@ export function Header(): React.JSX.Element {
 
 					{/* Botón calendario siempre visible */}
 					<Button
-						id="header-calendar-btn"
-						variant="outline"
-						size="sm"
-						onClick={ () => setCalendarOpen( true ) }
-						disabled={ draftSubjects.length === 0 }
-						className="h-8 text-xs font-medium gap-1.5"
+						id          = "header-calendar-btn"
+						variant     = "outline"
+						size        = "sm"
+						onClick     = { () => setCalendarOpen( true ) }
+						disabled    = { draftSubjects.length === 0 }
+						className   = "h-8 text-xs font-medium gap-1.5"
 					>
 						<Calendar className="size-3.5" />
+
 						<span className="hidden md:inline">Horario Completo 🗓️</span>
+
 						<span className="inline md:hidden">Horario 🗓️</span>
 					</Button>
 
@@ -161,8 +174,8 @@ export function Header(): React.JSX.Element {
 			</div>
 
 			<CalendarioDrawer
-				open={ calendarOpen }
-				onClose={ () => setCalendarOpen( false ) }
+				open    = { calendarOpen }
+				onClose = { () => setCalendarOpen( false )}
 			/>
 		</header>
 	);
