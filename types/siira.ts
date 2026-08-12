@@ -29,17 +29,23 @@ export interface IProfessor {
 }
 
 
+export interface ISessionEnrollment {
+	ticketId : string;
+	status   : 'PROCESSING' | 'CONFIRMED' | 'REJECTED';
+}
+
+
 export interface ISession {
 	id              : string;
 	name            : string; // C | A | T | L (Cátedra, Ayudantía, Taller, Laboratorio)
 	chairsAvailable : number | null;
 	isEnglish       : boolean;
 	date            : Date;
-    spaceId         : string | null
+	spaceId         : string | null;
 	professor       : IProfessor | null;
 	module          : IModule;
 	quota           : number;
-	// registered?     : number | null;
+	enrollments?    : ISessionEnrollment[];
 }
 
 
@@ -96,21 +102,22 @@ export interface IStudentCurriculumResponse {
 
 
 export interface SubjectSection {
-    id          : string;
-    label       : string;   // "Sec 1", "Sec 2", …
-    professor   : string;
-    schedule    : string;   // JSON.stringify(ScheduleSlot[])
-    quotas      : number;   // Cupos disponibles actuales
-    capacity    : number;   // Capacidad total (para mostrar ratio visual)
-    ssec        : string;   // "IDSubject-CodeSection" (ej. INF-101-1)
-    sessionName : string;   // "Cátedra" | "Taller" | "Ayudantía" | "Laboratorio"
-    building    : string | null;
-    spaceType   : string | null;
-    spaceId     : string | null;
-    isEnglish   : boolean;
-    profEmail   : string | null;
-    day         : Day;
-    timeLabel   : string;
+    id           : string;
+    label        : string;   // "Sec 1", "Sec 2", …
+    professor    : string;
+    schedule     : string;   // JSON.stringify(ScheduleSlot[])
+    quotas       : number;   // Cupos disponibles actuales
+    capacity     : number;   // Capacidad total (para mostrar ratio visual)
+    ssec         : string;   // "IDSubject-CodeSection" (ej. INF-101-1)
+    sessionName  : string;   // "Cátedra" | "Taller" | "Ayudantía" | "Laboratorio"
+    building     : string | null;
+    spaceType    : string | null;
+    spaceId      : string | null;
+    isEnglish    : boolean;
+    profEmail    : string | null;
+    day          : Day;
+    timeLabel    : string;
+    enrollments? : ISessionEnrollment[];
 }
 
 // ─── Subject ──────────────────────────────────────────────────────────────────
