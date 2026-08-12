@@ -4,10 +4,13 @@ import {
     createContext,
     useCallback,
     useContext,
+    useEffect,
     useMemo,
     useState,
 } from 'react';
 
+import { useSubjects }      from '@/hooks/use-subjects';
+import { useExecutionMode } from '@/hooks/use-execution-mode';
 import type { DraftStatus, Subject } from '@/types/siira';
 
 interface CartContextValue {
@@ -34,6 +37,35 @@ export function CartProvider( { children }: CartProviderProps ): React.JSX.Eleme
     const [ draftSubjects, setDraftSubjects ] = useState<Subject[]>( [] );
     const [ draftStatus, setDraftStatus ]     = useState<DraftStatus>( 'editing' );
     const [ isCartOpen, setIsCartOpen ]       = useState( true );
+
+    const { data: subjects } = useSubjects();
+    const { mode }           = useExecutionMode();
+
+    useEffect( () => {
+        if ( mode === 'toma_ramos' && subjects ) {
+            const enrolledSubjects: Subject[] = [];
+
+            subjects.forEach( ( s ) => {
+                if ( s.academicHistory?.status === 'IN_PROGRESS' && s.sections ) {
+                    const enrolledSection = s.sections.find( ( sec ) =>
+                        sec.enrollments?.some( ( e ) => e.status === 'CONFIRMED' || e.status === 'PROCESSING' )
+                    );
+
+                    if ( enrolledSection ) {
+                        enrolledSubjects.push({
+                            ...s,
+                            professor : enrolledSection.professor,
+                            schedule  : enrolledSection.schedule,
+                            quotas    : enrolledSection.quotas,
+                        });
+                    }
+                }
+            } );
+
+            setDraftSubjects( enrolledSubjects );
+        }
+    }, [ subjects, mode ] );
+
 
     const usedCredits = useMemo(
         () => draftSubjects.reduce( ( acc, s ) => acc + s.credits, 0 ),
