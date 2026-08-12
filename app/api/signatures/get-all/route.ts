@@ -116,25 +116,26 @@ export async function GET( _req: NextRequest ): Promise<NextResponse> {
                             },
                         ];
 
-                        mappedSections.push({
-                            id          : `${ sec.id }_${ session.id }`,
-                            label       : `Sec ${ sec.code } - ${ sessionNameFull }`,
-                            professor   : session.professor?.name ?? 'Sin profesor',
-                            schedule    : JSON.stringify( secSlots ),
-                            quotas      : Math.max( 0, sec.quota - ( sec.registered ?? 0 ) ),
-                            capacity    : sec.quota,
+						mappedSections.push({
+							id          : `${ sec.id }_${ session.id }`,
+							label       : `Sec ${ sec.code } - ${ sessionNameFull }`,
+							professor   : session.professor?.name ?? 'Sin profesor',
+							schedule    : JSON.stringify( secSlots ),
+							quotas      : Math.max( 0, sec.quota - ( sec.registered ?? 0 ) ),
+							capacity    : sec.quota,
 
-                            // Virtual session details
-                            ssec        : `${ s.id }-${ sec.code }`,
-                            sessionName : sessionNameFull,
-                            building    : sec.building,
-                            spaceType   : sec.spaceType,
-                            spaceId     : session.spaceId,
-                            isEnglish   : session.isEnglish,
-                            profEmail   : session.professor?.email ?? null,
-                            day         : dayStr,
-                            timeLabel   : `${ session.module.startHour } - ${ session.module.endHour }`,
-                        });
+							// Virtual session details
+							ssec        : `${ s.id }-${ sec.code }`,
+							sessionName : sessionNameFull,
+							building    : sec.building,
+							spaceType   : sec.spaceType,
+							spaceId     : session.spaceId,
+							isEnglish   : session.isEnglish,
+							profEmail   : session.professor?.email ?? null,
+							day         : dayStr,
+							timeLabel   : `${ session.module.startHour } - ${ session.module.endHour }`,
+							enrollments : session.enrollments,
+						});
                     });
                 });
 
