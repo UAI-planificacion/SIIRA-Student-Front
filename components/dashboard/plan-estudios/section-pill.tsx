@@ -3,6 +3,7 @@
 import { JSX, memo, useState, useMemo, type MouseEvent } from 'react';
 
 import { Check, AlertCircle, BookMarked } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
     Dialog,
@@ -12,9 +13,14 @@ import {
     DialogHeader,
     DialogTitle,
 }                                       from '@/components/ui/dialog';
+import {
+    useSubscribeStudent,
+    useUnsubscribeStudent
+}                                       from '@/hooks/use-study-plan-mutations';
 import { Button }                       from '@/components/ui/button';
 import { useCart }                      from '@/context/cart-context';
 import { useExecutionMode }             from '@/hooks/use-execution-mode';
+import { authClient }                   from '@/lib/auth-client';
 import { usePeriods }                   from '@/hooks/use-periods';
 import type { Subject, SubjectSection } from '@/types/siira';
 
@@ -65,14 +71,21 @@ function SectionPillInner({
         removeSubject,
         draftSubjects
     }                                       = useCart();
-    const { mode }                          = useExecutionMode();
-    const [ confirmOpen, setConfirmOpen ]   = useState( false );
-    const { data: periods }                 = usePeriods();
+    const { mode }                            = useExecutionMode();
+    const [ confirmAction, setConfirmAction ] = useState< 'subscribe' | 'unsubscribe' | null >( null );
+    const { data: periods }                   = usePeriods();
+    const { data: session }                   = authClient.useSession();
 
+    const email         = session?.user?.email;
     const currentInCart = draftSubjects.find( ( s ) => s.id === subject.id );
     const isThisSection = currentInCart?.professor === section.professor;
     const isInCart      = !!currentInCart;
     const isFull        = currentQuotas === 0;
+
+    const subscribeMutation   = useSubscribeStudent();
+    const unsubscribeMutation = useUnsubscribeStudent();
+
+    const isPending = subscribeMutation.isPending || unsubscribeMutation.isPending;
 
     // Find the raw section to read its periodId
     const rawSec = useMemo( () => {
@@ -99,10 +112,10 @@ function SectionPillInner({
         return now >= start && now <= end;
     }, [ periods, rawSec ] );
 
-    // En Toma de Ramos: deshabilitado si ya hay algo en el carro (inscrito) o no hay cupo o fuera de periodo
+    // En Toma de Ramos: deshabilitado si ya hay algo en el carro (inscrito) a menos que sea esta sección (para desinscribir), o no hay cupo (a menos que sea esta sección)
     // En Planificación: deshabilitado si no hay cupo y no es la sección seleccionada o fuera de periodo
-    const isDisabled = !isPeriodActive || ( mode === 'toma_ramos'
-        ? ( isInCart || isFull )
+    const isDisabled = !isPeriodActive || isPending || ( mode === 'toma_ramos'
+        ? ( ( isInCart && !isThisSection ) || ( !isInCart && isFull ) )
         : ( isFull && !isThisSection ) );
 
     function handleAction(): void {
@@ -121,10 +134,59 @@ function SectionPillInner({
         }
     }
 
+    const handleSubscribe = () => {
+        if ( !email ) {
+            toast.error( 'Error: No se encontró el correo del estudiante' );
+            return;
+        }
+
+        const parts     = section.id.split( '_' );
+        const sessionId = parts[ 1 ] ?? parts[ 0 ];
+
+        subscribeMutation.mutate({
+            sessionId,
+            email,
+        }, {
+            onSuccess: ( data ) => {
+                toast.success( `Inscripción encolada. Ticket: ${ data.ticketId }` );
+                handleAction();
+            },
+            onError: ( err ) => {
+                toast.error( err.message || 'Error al solicitar la inscripción' );
+            }
+        });
+    };
+
+    const handleUnsubscribe = () => {
+        if ( !email ) {
+            toast.error( 'Error: No se encontró el correo del estudiante' );
+            return;
+        }
+
+        const parts     = section.id.split( '_' );
+        const sessionId = parts[ 1 ] ?? parts[ 0 ];
+
+        unsubscribeMutation.mutate({
+            sessionId,
+            email,
+        }, {
+            onSuccess: ( data ) => {
+                toast.success( `Desinscripción encolada. Ticket: ${ data.ticketId }` );
+                removeSubject( subject.id );
+            },
+            onError: ( err ) => {
+                toast.error( err.message || 'Error al solicitar la desinscripción' );
+            }
+        });
+    };
+
     function handleClick(): void {
         if ( mode === 'toma_ramos' ) {
-            // Abre confirmación obligatoria para inscripción irreversible
-            setConfirmOpen( true );
+            if ( isThisSection ) {
+                setConfirmAction( 'unsubscribe' );
+            } else {
+                setConfirmAction( 'subscribe' );
+            }
         } else {
             // Planificación libre (agregar o remover)
             if ( isThisSection ) {
@@ -162,18 +224,11 @@ function SectionPillInner({
                     { isThisSection ? (
                         <Check className="size-2.5 text-emerald-500 shrink-0" />
                     ) : (
-                        // <ShoppingCart className="size-3.5 shrink-0 opacity-50 group-hover:opacity-100" />
                         <BookMarked className="size-3.5 shrink-0 opacity-50 group-hover:opacity-100" />
                     )}
 
                     <div className='grid'>
                         <span className="font-semibold">{ section.label }</span>
-                        {/* { section.isEnglish && (
-                            <span className="ml-1 bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[8px] px-1 py-0.5 rounded font-bold shrink-0">
-                                EN
-                            </span>
-                        ) } */}
-
                         <span className='text-[9px] text-muted-foreground'>
                             { section.professor }
                         </span>
@@ -202,12 +257,12 @@ function SectionPillInner({
 
             {/* Dialog de confirmación de inscripción formal (Modo Toma de Ramos) */}
             <Dialog
-                open            = { confirmOpen }
-                onOpenChange    = { ( open ) => { if ( !open ) { /* prevent close externally by not doing setConfirmOpen(false) here */ }}}
+                open            = { confirmAction === 'subscribe' }
+                onOpenChange    = { ( open ) => { if ( !open ) setConfirmAction( null ); } }
             >
                 <DialogContent showCloseButton={ false }>
                     <DialogHeader>
-                        <div className="flex items-center gap-2 text-destructive mb-1">
+                        <div className="flex items-center gap-2 text-primary mb-1">
                             <AlertCircle className="size-5 shrink-0" />
 
                             <DialogTitle className="text-base font-bold text-foreground">
@@ -248,14 +303,14 @@ function SectionPillInner({
                     </div>
 
                     <div className="my-2 p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[11px] text-yellow-600 dark:text-yellow-400 leading-normal">
-                        ⚠ <strong>Importante:</strong> Esta acción es de registro automático. Una vez confirmada, no podrás revertirla ni modificar la sección desde esta plataforma; deberás gestionarlo formalmente con la secretaría académica de la universidad.
+                        ⚠ <strong>Importante:</strong> Esta acción es de registro automático. Una vez confirmada, se encolará y procesará de manera asíncrona.
                     </div>
 
                     <DialogFooter className="flex gap-2 justify-end">
                         <Button
                             id="dialog-confirm-cancel"
                             variant="outline"
-                            onClick={ () => setConfirmOpen( false ) }
+                            onClick={ () => setConfirmAction( null ) }
                             className="h-8 text-xs font-semibold"
                         >
                             Cancelar
@@ -263,10 +318,10 @@ function SectionPillInner({
 
                         <Button
                             id="dialog-confirm-accept"
-                            disabled={ currentQuotas === 0 }
+                            disabled={ currentQuotas === 0 || subscribeMutation.isPending }
                             onClick={ () => {
-                                setConfirmOpen( false );
-                                handleAction();
+                                setConfirmAction( null );
+                                handleSubscribe();
                             } }
                             className={[
                                 'h-8 text-xs font-semibold text-white transition-all',
@@ -275,7 +330,67 @@ function SectionPillInner({
                                     : 'bg-emerald-600 hover:bg-emerald-700'
                             ].join( ' ' )}
                         >
-                            { currentQuotas === 0 ? 'Sin cupos disponibles' : 'Aceptar e Inscribir' }
+                            { subscribeMutation.isPending ? 'Procesando...' : currentQuotas === 0 ? 'Sin cupos disponibles' : 'Aceptar e Inscribir' }
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog de confirmación de desinscripción (Modo Toma de Ramos) */}
+            <Dialog
+                open            = { confirmAction === 'unsubscribe' }
+                onOpenChange    = { ( open ) => { if ( !open ) setConfirmAction( null ); } }
+            >
+                <DialogContent showCloseButton={ false }>
+                    <DialogHeader>
+                        <div className="flex items-center gap-2 text-destructive mb-1">
+                            <AlertCircle className="size-5 shrink-0" />
+
+                            <DialogTitle className="text-base font-bold text-foreground">
+                                Confirmar Cancelación de Inscripción
+                            </DialogTitle>
+                        </div>
+
+                        <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                            ¿Estás seguro de que deseas desinscribirte de la asignatura <strong className="text-foreground">{ subject.name }</strong>?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="my-2.5 p-3 rounded-lg border border-border bg-muted/20 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-foreground">
+                                { section.label }
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Prof. { section.professor }
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="my-2 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-[11px] text-red-600 dark:text-red-400 leading-normal">
+                        ⚠ <strong>Importante:</strong> Esta acción liberará tu cupo en esta sección una vez que el servidor la procese.
+                    </div>
+
+                    <DialogFooter className="flex gap-2 justify-end">
+                        <Button
+                            id="dialog-unsubscribe-cancel"
+                            variant="outline"
+                            onClick={ () => setConfirmAction( null ) }
+                            className="h-8 text-xs font-semibold"
+                        >
+                            Cancelar
+                        </Button>
+
+                        <Button
+                            id="dialog-unsubscribe-accept"
+                            disabled={ unsubscribeMutation.isPending }
+                            onClick={ () => {
+                                setConfirmAction( null );
+                                handleUnsubscribe();
+                            } }
+                            className="h-8 text-xs font-semibold text-white bg-destructive hover:bg-destructive/90 transition-all"
+                        >
+                            { unsubscribeMutation.isPending ? 'Procesando...' : 'Aceptar y Desinscribir' }
                         </Button>
                     </DialogFooter>
                 </DialogContent>
