@@ -302,7 +302,10 @@ function PlanEstudiosNodeInner({
     }, [ subject.rawSections, activePeriodIds, periods ] );
 
 
-    const isAvailableToEnroll = historyStatus === null || historyStatus === 'FAILED' || ( historyStatus === 'CREDITED' && ALLOW_SELECT_CREDITED );
+    const isAvailableToEnroll = historyStatus === null
+        || historyStatus === 'FAILED'
+        || ( historyStatus === 'CREDITED' && ALLOW_SELECT_CREDITED )
+        || ( historyStatus === 'IN_PROGRESS' && mode === 'toma_ramos' );
 
 
     const { data: liveQuotas } = useSubjectQuotas(
@@ -345,7 +348,7 @@ function PlanEstudiosNodeInner({
         <div className={ ringClass }>
             { historyStatus === 'APPROVED' ? (
                 <ApprovedNode subject = { subject } />
-            ) : historyStatus === 'IN_PROGRESS' ? (
+            ) : historyStatus === 'IN_PROGRESS' && mode !== 'toma_ramos' ? (
                 <InProgressNode subject = { subject } />
             ) : historyStatus === 'CREDITED' && !ALLOW_SELECT_CREDITED ? (
                 <CreditedNode subject = { subject } />
