@@ -4,37 +4,41 @@ import { z } from 'zod';
  * Environment variables schema using Zod for validation.
  * Covers both client-side MSAL variables and server-side Better-Auth variables.
  */
-const envSchema = z.object({
-    NEXT_PUBLIC_REQUEST_BACK_URL : z.url({ message: 'Request back URL must be a valid URL' }).min( 1, { message: 'Request back URL is required' }),
+const envSchema = z.object( {
+	NEXT_PUBLIC_REQUEST_BACK_URL	: z.url( { message: 'Request back URL must be a valid URL' } ).min( 1, { message: 'Request back URL is required' } ),
 
-    // MSAL Authentication (client-side, kept for compatibility)
-    NEXT_PUBLIC_MSAL_CLIENT_ID     : z.string().min( 1, { message: 'MSAL Client ID is required' }),
-    NEXT_PUBLIC_MSAL_CLIENT_SECRET : z.string().min( 1, { message: 'MSAL Client Secret is required' }),
-    NEXT_PUBLIC_MSAL_TENANT_ID     : z.string().min( 1, { message: 'MSAL Tenant ID is required' }),
+	// MSAL Authentication (client-side, kept for compatibility)
+	NEXT_PUBLIC_MSAL_CLIENT_ID		: z.string().min( 1, { message: 'MSAL Client ID is required' } ),
+	NEXT_PUBLIC_MSAL_CLIENT_SECRET	: z.string().min( 1, { message: 'MSAL Client Secret is required' } ),
+	NEXT_PUBLIC_MSAL_TENANT_ID		: z.string().min( 1, { message: 'MSAL Tenant ID is required' } ),
 
-    // Microsoft OAuth — server-side (Better-Auth)
-    MICROSOFT_CLIENT_ID     : z.string().min( 1, { message: 'Microsoft Client ID is required' }),
-    MICROSOFT_CLIENT_SECRET : z.string().min( 1, { message: 'Microsoft Client Secret is required' }),
-    MICROSOFT_TENANT_ID     : z.string().min( 1, { message: 'Microsoft Tenant ID is required' }),
+	// Microsoft OAuth — server-side (Better-Auth)
+	MICROSOFT_CLIENT_ID     : z.string().min( 1, { message: 'Microsoft Client ID is required' } ),
+	MICROSOFT_CLIENT_SECRET : z.string().min( 1, { message: 'Microsoft Client Secret is required' } ),
+	MICROSOFT_TENANT_ID		: z.string().min( 1, { message: 'Microsoft Tenant ID is required' } ),
 
-    // Better-Auth
-    BETTER_AUTH_SECRET : z.string().min( 1, { message: 'Better-Auth secret is required' }),
-    BETTER_AUTH_URL    : z.string().url( { message: 'Better-Auth URL must be a valid URL' }),
-});
+	// Better-Auth
+	BETTER_AUTH_SECRET  : z.string().min( 1, { message: 'Better-Auth secret is required' }),
+	BETTER_AUTH_URL     : z.url({ message: 'Better-Auth URL must be a valid URL' }),
+
+	// Poller Service Backend
+	POLLER_BACK_URL : z.url({ message: 'Poller back URL must be a valid URL' }),
+} );
 
 /**
  * Parse and validate environment variables
  */
 const processEnv = {
-    NEXT_PUBLIC_REQUEST_BACK_URL    : process.env.NEXT_PUBLIC_REQUEST_BACK_URL,
-    NEXT_PUBLIC_MSAL_CLIENT_ID      : process.env.NEXT_PUBLIC_MSAL_CLIENT_ID,
-    NEXT_PUBLIC_MSAL_CLIENT_SECRET  : process.env.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
-    NEXT_PUBLIC_MSAL_TENANT_ID      : process.env.NEXT_PUBLIC_MSAL_TENANT_ID,
-    MICROSOFT_CLIENT_ID             : process.env.MICROSOFT_CLIENT_ID,
-    MICROSOFT_CLIENT_SECRET         : process.env.MICROSOFT_CLIENT_SECRET,
-    MICROSOFT_TENANT_ID             : process.env.MICROSOFT_TENANT_ID,
-    BETTER_AUTH_SECRET              : process.env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL                 : process.env.BETTER_AUTH_URL,
+	NEXT_PUBLIC_REQUEST_BACK_URL	: process.env.NEXT_PUBLIC_REQUEST_BACK_URL,
+	NEXT_PUBLIC_MSAL_CLIENT_ID		: process.env.NEXT_PUBLIC_MSAL_CLIENT_ID,
+	NEXT_PUBLIC_MSAL_CLIENT_SECRET	: process.env.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
+	NEXT_PUBLIC_MSAL_TENANT_ID		: process.env.NEXT_PUBLIC_MSAL_TENANT_ID,
+	MICROSOFT_CLIENT_ID				: process.env.MICROSOFT_CLIENT_ID,
+	MICROSOFT_CLIENT_SECRET			: process.env.MICROSOFT_CLIENT_SECRET,
+	MICROSOFT_TENANT_ID				: process.env.MICROSOFT_TENANT_ID,
+	BETTER_AUTH_SECRET				: process.env.BETTER_AUTH_SECRET,
+	BETTER_AUTH_URL					: process.env.BETTER_AUTH_URL,
+	POLLER_BACK_URL					: process.env.POLLER_BACK_URL,
 };
 
 /**
@@ -43,31 +47,36 @@ const processEnv = {
 const parsedEnv = envSchema.safeParse( processEnv );
 
 if ( !parsedEnv.success ) {
-    console.error(
-        '❌ Invalid environment variables:',
-        JSON.stringify( parsedEnv.error.format(), null, 4 )
-    );
+	console.error(
+		'❌ Invalid environment variables:',
+		JSON.stringify( parsedEnv.error.format(), null, 4 )
+	);
 
-    throw new Error( 'Invalid environment variables' );
+	throw new Error( 'Invalid environment variables' );
 }
 
 /**
  * Export validated environment variables
  */
 export const ENV = {
-    REQUEST_BACK_URL : parsedEnv.data.NEXT_PUBLIC_REQUEST_BACK_URL,
+	REQUEST_BACK_URL    : parsedEnv.data.NEXT_PUBLIC_REQUEST_BACK_URL,
+    POLLER_BACK_URL		: parsedEnv.data.POLLER_BACK_URL,
+
     MSAL: {
-        CLIENT_ID       : parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_ID,
-        CLIENT_SECRET   : parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
-        TENANT_ID       : parsedEnv.data.NEXT_PUBLIC_MSAL_TENANT_ID,
-    },
+		CLIENT_ID		: parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_ID,
+		CLIENT_SECRET	: parsedEnv.data.NEXT_PUBLIC_MSAL_CLIENT_SECRET,
+		TENANT_ID		: parsedEnv.data.NEXT_PUBLIC_MSAL_TENANT_ID,
+	},
+
     MICROSOFT: {
-        CLIENT_ID       : parsedEnv.data.MICROSOFT_CLIENT_ID,
-        CLIENT_SECRET   : parsedEnv.data.MICROSOFT_CLIENT_SECRET,
-        TENANT_ID       : parsedEnv.data.MICROSOFT_TENANT_ID,
-    },
+		CLIENT_ID		: parsedEnv.data.MICROSOFT_CLIENT_ID,
+		CLIENT_SECRET	: parsedEnv.data.MICROSOFT_CLIENT_SECRET,
+		TENANT_ID		: parsedEnv.data.MICROSOFT_TENANT_ID,
+	},
+
     BETTER_AUTH: {
-        SECRET  : parsedEnv.data.BETTER_AUTH_SECRET,
-        URL     : parsedEnv.data.BETTER_AUTH_URL,
-    },
+		SECRET  : parsedEnv.data.BETTER_AUTH_SECRET,
+		URL     : parsedEnv.data.BETTER_AUTH_URL,
+	},
+
 };
