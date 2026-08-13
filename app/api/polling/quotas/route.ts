@@ -1,98 +1,119 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse }     from 'next/server';
-import { headers }          from 'next/headers';
+import { ENV }              from '@/config/envs/env';
 
-import { auth }                          from '@/lib/auth';
-import type { IStudentCurriculumResponse } from '@/types/siira';
-import { ENV }                           from '@/config/envs/env';
-import type { Period }                   from '@/types/periods';
+export interface SessionQuotaResponse {
+	sessionId	: string;
+	quota		: number;
+}
 
+async function fetchWithTimeout( url : string, options : RequestInit, timeout : number ): Promise<Response> {
+	const controller = new AbortController();
+	const id = setTimeout( () => controller.abort(), timeout );
+
+	try {
+		const response = await fetch( url, {
+			...options,
+			signal: controller.signal,
+		} );
+		clearTimeout( id );
+		return response;
+	} catch ( err ) {
+		clearTimeout( id );
+		throw err;
+	}
+}
 
 export async function GET( req : NextRequest ): Promise<NextResponse> {
-    const { searchParams } = new URL( req.url );
-    const subjectId        = searchParams.get( 'subjectId' );
+	const { searchParams } = new URL( req.url );
+	const subjectId        = searchParams.get( 'subjectId' );
+	const sessionsParam    = searchParams.get( 'sessions' );
 
-    if ( !subjectId ) {
-        return NextResponse.json( { error: 'Falta el parámetro subjectId' }, { status: 400 } );
-    }
+	if ( !subjectId ) {
+		return NextResponse.json( { error: 'Falta el parámetro subjectId' }, { status: 400 } );
+	}
 
-    try {
-        const session = await auth.api.getSession( {
-            headers: await headers()
-        } );
-        const email = session?.user?.email ?? 'jane.doe@example.com';
+	try {
+		// If no sessions are passed, return empty sections list
+		if ( !sessionsParam ) {
+			return NextResponse.json( {
+				subjectId	: subjectId,
+				quotas		: 0,
+				sections	: [],
+			} );
+		}
 
-        // 1. Fetch periods to validate date ranges
-        const periodsRes = await fetch( `${ ENV.REQUEST_BACK_URL }/periods`, {
-            method  : 'GET',
-            headers : {
-                'accept': '*/*',
-            },
-        } );
+		// sessionsParam is a comma-separated list of "virtualId:sessionId"
+		const sessionItems = sessionsParam.split( ',' ).filter( Boolean );
 
-        if ( !periodsRes.ok ) {
-            return NextResponse.json( { error: 'Error fetching periods from backend' }, { status: periodsRes.status } );
-        }
+		const mappedSections = await Promise.all(
+			sessionItems.map( async ( item ) => {
+				const [ virtualId, sessionId ] = item.split( ':' );
 
-        const periods = await periodsRes.json() as Period[];
+				if ( !virtualId || !sessionId ) {
+					return {
+						id		: virtualId || '',
+						quotas	: 0,
+						status	: 'error' as const,
+					};
+				}
 
-        // Determine active periods (now is between startDate and endDate)
-        const now = new Date();
-        const activePeriodIds = new Set(
-            periods
-                .filter( ( p ) => {
-                    const start = new Date( p.startDate );
-                    const end   = new Date( p.endDate );
-                    return now >= start && now <= end;
-                } )
-                .map( ( p ) => p.id )
-        );
+                const url = `${ ENV.POLLER_BACK_URL }/api/v1/sessions/${ sessionId }/quota`;
+                console.log('🚀 ~ GET ~ url:', url)
 
-        // 2. Query backend NestJS service
-        const backendRes = await fetch( `${ ENV.REQUEST_BACK_URL }/study-plan/student-email/${ encodeURIComponent( email ) }?activePeriod=true` );
+				try {
+					const response = await fetchWithTimeout(
+						`${ ENV.POLLER_BACK_URL }/api/v1/sessions/${ sessionId }/quota`,
+						{
+							method  : 'GET',
+							headers : {
+								'accept': '*/*',
+							},
+						},
+						1000
+					);
 
-        if ( !backendRes.ok ) {
-            return NextResponse.json( { error: 'Error fetching study plan from backend' }, { status: backendRes.status } );
-        }
+					if ( response.ok ) {
+						const quotaData = await response.json() as SessionQuotaResponse;
+						return {
+							id		: virtualId,
+							quotas	: quotaData.quota,
+							status	: 'ok' as const,
+						};
+					} else {
+						return {
+							id		: virtualId,
+							quotas	: 0,
+							status	: 'error' as const,
+						};
+					}
+				} catch ( error: any ) {
+					console.error( `Error fetching real-time quota for session ${ sessionId }:`, error );
+					if ( error.name === 'AbortError' ) {
+						return {
+							id		: virtualId,
+							quotas	: 0,
+							status	: 'timeout' as const,
+						};
+					}
+					return {
+						id		: virtualId,
+						quotas	: 0,
+						status	: 'error' as const,
+					};
+				}
+			} )
+		);
 
-        const data = await backendRes.json() as IStudentCurriculumResponse;
+		const quotas = mappedSections.reduce( ( acc, sec ) => acc + sec.quotas, 0 );
 
-        // Find subject in semesters
-        let subject = null;
-        for ( const sem of data.semesters ) {
-            const found = sem.subjects.find( ( s ) => s.id === subjectId );
-            if ( found ) {
-                subject = found;
-                break;
-            }
-        }
-
-        if ( !subject ) {
-            return NextResponse.json( { error: 'Asignatura no encontrada' }, { status: 404 } );
-        }
-
-        // Validate that the subject has sections in active periods
-        const hasActiveSection = subject.sections.some( ( sec ) => activePeriodIds.has( sec.periodId ) );
-        if ( subject.sections.length > 0 && !hasActiveSection ) {
-            return NextResponse.json( { error: 'La asignatura está fuera del periodo activo de inscripción' }, { status: 400 } );
-        }
-
-        const mappedSections = subject.sections.map( ( sec ) => ( {
-            id     : sec.id,
-            quotas : Math.max( 0, sec.quota - ( sec.registered ?? 0 ) ),
-        } ) );
-
-        const quotas = mappedSections.reduce( ( acc, sec ) => acc + sec.quotas, 0 );
-
-        return NextResponse.json( {
-            subjectId : subject.id,
-            quotas    : quotas,
-            sections  : mappedSections.length > 0 ? mappedSections : [
-                { id: `${ subject.id }-sec-1`, quotas: quotas }
-            ],
-        } );
-    } catch ( error ) {
-        console.error( 'Error in polling quotas:', error );
-        return NextResponse.json( { error: 'Internal Server Error' }, { status: 500 } );
-    }
+		return NextResponse.json( {
+			subjectId	: subjectId,
+			quotas		: quotas,
+			sections	: mappedSections,
+		} );
+	} catch ( error ) {
+		console.error( 'Error in polling quotas proxy:', error );
+		return NextResponse.json( { error: 'Internal Server Error' }, { status: 500 } );
+	}
 }
