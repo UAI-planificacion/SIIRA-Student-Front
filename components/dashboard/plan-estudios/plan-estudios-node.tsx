@@ -214,12 +214,14 @@ function AvailableNode( {
                     visibleSections.map( ( section ) => {
                         const liveSec       = liveQuotas?.sections.find( ( s ) => s.id === section.id );
                         const currentQuotas = liveSec ? liveSec.quotas : section.quotas;
+                        const status        = liveSec?.status;
                         return (
                             <SectionPill
                                 key             = { section.id }
                                 section         = { section }
                                 subject         = { subject }
                                 currentQuotas   = { currentQuotas }
+                                status          = { status }
                                 onMouseEnter    = { onMouseEnter }
                                 onMouseLeave    = { onMouseLeave }
                             />
@@ -229,6 +231,7 @@ function AvailableNode( {
                     // Fallback: single-section pill built from the subject itself
                     ( () => {
                         const currentQuotas = liveQuotas ? liveQuotas.quotas : subject.quotas;
+                        const status        = liveQuotas?.sections?.[ 0 ]?.status;
                         return (
                             <SectionPill
                                 section         = { {
@@ -250,6 +253,7 @@ function AvailableNode( {
                                 } }
                                 subject         = { subject }
                                 currentQuotas   = { currentQuotas }
+                                status          = { status }
                                 onMouseEnter    = { onMouseEnter }
                                 onMouseLeave    = { onMouseLeave }
                             />
@@ -309,7 +313,7 @@ function PlanEstudiosNodeInner({
 
 
     const { data: liveQuotas } = useSubjectQuotas(
-        subject.id,
+        subject,
         mode === 'toma_ramos' && isAvailableToEnroll && isPeriodActive
     );
 
